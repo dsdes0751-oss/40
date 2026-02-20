@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 권한 설정 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- [화면 번역용 추가 권한] -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- [New] 대량 번역용 권한 (백그라운드 실행 및 데이터 처리) -->
+    <!-- 개발자 계정 이슈로 DATA_SYNC 권한 일시 제거 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" /> <!-- 이 권한이 꼭 필요합니다 -->
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Proj01">
+
+        <!-- 1. 뷰어 액티비티 -->
+        <activity android:name=".ViewerActivity" />
+        <activity android:name=".NovelViewerActivity" android:exported="false" />
+        <activity android:name=".NovelTranslationActivity" android:exported="false" />
+        <activity android:name=".VnGameTranslationActivity" android:exported="false" />
+        <activity android:name=".VnCreditChargeActivity" android:exported="false" />
+
+        <activity android:name=".LibraryActivity" android:exported="false" />
+
+        <!-- 2. 메인 액티비티 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 4. 화면 번역 서비스 -->
+        <service
+            android:name=".ScreenTranslationService"
+            android:foregroundServiceType="mediaProjection"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- [New] 대량 번역 서비스 -->
+        <!-- foregroundServiceType="dataSync" 제거됨 -->
+        <service
+            android:name=".MassTranslationService"
+            android:enabled="true"
+            android:exported="false" />
+        <service
+            android:name=".NovelTranslationService"
+            android:enabled="true"
+            android:exported="false" />
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <activity android:name=".HelpActivity" android:exported="false" />
+    </application>
+
+</manifest>

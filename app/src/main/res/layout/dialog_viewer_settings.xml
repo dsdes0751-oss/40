@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- 1. 화면 설정 섹션 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_screen"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/switch_vertical_mode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_webtoon_mode"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="12dp"/>
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/switch_show_original"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_show_original"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="24dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- 2. 조작 설정 섹션 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_controls"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/switch_volume"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_volume_keys"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="24dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- 3. 표지 설정 섹션 (추가) -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_cover"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/switch_hide_current_cover"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_hide_this_cover"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="12dp"/>
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/switch_hide_all_covers"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_hide_all_covers"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:layout_marginBottom="24dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- 4. 데이터 관리 섹션 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/settings_data_management"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <Button
+        android:id="@+id/btn_export_current"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_export_current"
+        android:textColor="#1976D2"
+        android:backgroundTint="#E3F2FD"
+        android:textStyle="bold"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btn_delete_current"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_delete_current"
+        android:textColor="#D32F2F"
+        android:backgroundTint="#FFEBEE"
+        android:textStyle="bold"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btn_delete_all"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/viewer_settings_delete_all"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#D32F2F"
+        android:textStyle="bold"/>
+
+</LinearLayout>
