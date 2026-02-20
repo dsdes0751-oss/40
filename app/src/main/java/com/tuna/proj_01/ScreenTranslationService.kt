@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 
 class ScreenTranslationService : Service() {
@@ -73,8 +74,8 @@ class ScreenTranslationService : Service() {
         const val EXTRA_VN_SOURCE_LANG = "extra_vn_source_lang"
         private const val TAG = "ScreenTranslation"
         private const val VN_INPUT_CHAR_LIMIT = 90
-        private const val DEFAULT_CHANGE_THRESHOLD = 250_000
-        private const val VN_CHANGE_THRESHOLD = 400_000
+        private const val DEFAULT_CHANGE_THRESHOLD = 24
+        private const val VN_CHANGE_THRESHOLD = 16
         private const val DEFAULT_POLL_INTERVAL_MS = 500L
         private const val VN_POLL_INTERVAL_MS = 300L
         private const val DEFAULT_STABLE_DELAY_MS = 700L
@@ -86,6 +87,11 @@ class ScreenTranslationService : Service() {
         DEFAULT,
         VN_FAST
     }
+
+    private data class AutoRegionSignature(
+        val avgLuma: Int,
+        val edgeLuma: Int
+    )
 
     private lateinit var windowManager: WindowManager
     private lateinit var floatingButton: ImageView
@@ -144,6 +150,8 @@ class ScreenTranslationService : Service() {
     private var isAutoTranslateEnabled = false
     private var autoTranslateJob: Job? = null
     private var isAutoMode = false  // [추가] 자동 화면번역 모드 여부
+    private var autoNoiseEma = 0.0
+    private var autoDynamicThreshold = DEFAULT_CHANGE_THRESHOLD
 
     private var lastClickTime: Long = 0
     private val doubleClickDelay = 300L
@@ -422,7 +430,8 @@ class ScreenTranslationService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or // 재추가: 화면 전체를 좌표 기준으로 사용
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_SECURE,
             PixelFormat.TRANSLUCENT
         )
 
@@ -524,7 +533,8 @@ class ScreenTranslationService : Service() {
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_SECURE,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
@@ -746,7 +756,7 @@ class ScreenTranslationService : Service() {
     private fun createFloatingButton() {
         floatingButton = ImageView(this).apply { setImageResource(android.R.drawable.ic_menu_search); setBackgroundColor(0x99000000.toInt()); setPadding(20, 20, 20, 20); isHapticFeedbackEnabled = true }
         val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-        floatingParams = WindowManager.LayoutParams(150, 150, layoutFlag, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.START; x = 0; y = 100 }
+        floatingParams = WindowManager.LayoutParams(150, 150, layoutFlag, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_SECURE, PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.START; x = 0; y = 100 }
         setTouchListener()
         try { windowManager.addView(floatingButton, floatingParams) } catch (e: Exception) {}
     }
@@ -841,21 +851,16 @@ class ScreenTranslationService : Service() {
         if (autoTranslateJob?.isActive == true) return
 
         isAutoTranslateEnabled = true
+        resetAutoChangeLearning()
         showCustomToast("자동번역 시작: 영역 변화 감지 중")
         val pollInterval = if (translationMode == TranslationMode.VN_FAST) VN_POLL_INTERVAL_MS else DEFAULT_POLL_INTERVAL_MS
         val stableDelay = if (translationMode == TranslationMode.VN_FAST) VN_STABLE_DELAY_MS else DEFAULT_STABLE_DELAY_MS
 
         autoTranslateJob = serviceScope.launch {
-            // [변경] 시그니처 캡처 전 오버레이를 잠시 숨겨 자기 인식 루프를 방지
-            withContext(Dispatchers.Main) {
-                resultOverlayView?.visibility = View.GONE
-                indicatorOverlay?.visibility = View.GONE
-            }
-            delay(80)
-            var lastSignature = withContext(Dispatchers.Default) { captureRegionSignature(rect) }
-            withContext(Dispatchers.Main) {
-                resultOverlayView?.visibility = View.VISIBLE
-                indicatorOverlay?.visibility = View.VISIBLE
+            var lastSignature = captureSignatureForAuto(rect)
+            if (lastSignature != null && !isCaptureInProgress) {
+                Log.d(TAG, "Auto mode: initial translation trigger")
+                triggerTranslationFromAuto()
             }
 
             var changedAt = 0L
@@ -866,25 +871,14 @@ class ScreenTranslationService : Service() {
                 if (isCaptureInProgress) continue
 
                 // [변경] 캡처 전 오버레이 숨김
-                withContext(Dispatchers.Main) {
-                    resultOverlayView?.visibility = View.GONE
-                    indicatorOverlay?.visibility = View.GONE
-                }
-                delay(80)
-                val signature = withContext(Dispatchers.Default) { captureRegionSignature(rect) }
-                // 캡처 후 오버레이 복원
-                withContext(Dispatchers.Main) {
-                    resultOverlayView?.visibility = View.VISIBLE
-                    indicatorOverlay?.visibility = View.VISIBLE
-                }
+                val signature = captureSignatureForAuto(rect)
                 if (signature == null) continue
 
-                if (lastSignature == null) {
-                    lastSignature = signature
-                    continue
-                }
+                if (lastSignature == null) { lastSignature = signature; continue }
 
-                if (isRegionChanged(lastSignature, signature)) {
+                val changed = isRegionChanged(lastSignature, signature)
+                if (changed) {
+                    Log.d(TAG, "Auto mode: change detected (threshold=$autoDynamicThreshold)")
                     lastSignature = signature
                     changedAt = System.currentTimeMillis()
                     waitingForStable = true
@@ -893,6 +887,7 @@ class ScreenTranslationService : Service() {
 
                 if (waitingForStable && System.currentTimeMillis() - changedAt >= stableDelay) {
                     waitingForStable = false
+                    Log.d(TAG, "Auto mode: stable window reached, trigger translation")
                     triggerTranslationFromAuto()
                 }
             }
@@ -913,16 +908,27 @@ class ScreenTranslationService : Service() {
         startCaptureWithCheck()
     }
 
-    private fun isRegionChanged(previous: Int, current: Int): Boolean {
-        val threshold = if (translationMode == TranslationMode.VN_FAST) {
-            VN_CHANGE_THRESHOLD
-        } else {
-            DEFAULT_CHANGE_THRESHOLD
-        }
-        return kotlin.math.abs(previous - current) > threshold
+    private fun resetAutoChangeLearning() {
+        autoNoiseEma = 0.0
+        autoDynamicThreshold = if (translationMode == TranslationMode.VN_FAST) VN_CHANGE_THRESHOLD else DEFAULT_CHANGE_THRESHOLD
     }
 
-    private fun captureRegionSignature(rect: Rect): Int? {
+    private fun learnAutoChangeThreshold(diff: Int) {
+        val base = if (translationMode == TranslationMode.VN_FAST) VN_CHANGE_THRESHOLD else DEFAULT_CHANGE_THRESHOLD
+        val clampedSample = min(diff, base * 4).toDouble()
+        autoNoiseEma = if (autoNoiseEma == 0.0) clampedSample else (autoNoiseEma * 0.9) + (clampedSample * 0.1)
+        autoDynamicThreshold = max(base, (autoNoiseEma * 2.5).toInt())
+    }
+
+    private fun isRegionChanged(previous: AutoRegionSignature, current: AutoRegionSignature): Boolean {
+        val lumaDiff = kotlin.math.abs(previous.avgLuma - current.avgLuma)
+        val edgeDiff = kotlin.math.abs(previous.edgeLuma - current.edgeLuma)
+        val combinedDiff = lumaDiff + (edgeDiff * 2)
+        learnAutoChangeThreshold(combinedDiff)
+        return combinedDiff > autoDynamicThreshold
+    }
+
+    private fun captureRegionSignature(rect: Rect): AutoRegionSignature? {
         val projection = mediaProjection ?: run {
             if (resultCode == 0 || resultData == null) return null
             mediaProjectionManager?.getMediaProjection(resultCode, resultData!!)?.also { mediaProjection = it }
@@ -962,24 +968,48 @@ class ScreenTranslationService : Service() {
 
             val cropped = Bitmap.createBitmap(fullBitmap, safeRect.left, safeRect.top, safeRect.width(), safeRect.height())
             fullBitmap.recycle()
-            val sampleW = min(32, cropped.width)
-            val sampleH = min(32, cropped.height)
+            val sampleW = min(24, cropped.width)
+            val sampleH = min(24, cropped.height)
             val scaled = Bitmap.createScaledBitmap(cropped, sampleW, sampleH, true)
             if (scaled != cropped) cropped.recycle()
 
-            var signature = 17
-            val step = 2
+            var lumaSum = 0L
+            var edgeSum = 0L
+            var sampleCount = 0
+            val prevRow = IntArray(sampleW) { -1 }
             var y = 0
             while (y < sampleH) {
+                var prevLumaInRow = -1
                 var x = 0
                 while (x < sampleW) {
-                    signature = signature * 31 + scaled.getPixel(x, y)
-                    x += step
+                    val pixel = scaled.getPixel(x, y)
+                    val r = (pixel shr 16) and 0xFF
+                    val g = (pixel shr 8) and 0xFF
+                    val b = pixel and 0xFF
+                    val luma = ((r * 3) + (g * 6) + b) / 10
+
+                    lumaSum += luma
+                    sampleCount++
+
+                    if (prevLumaInRow >= 0) {
+                        edgeSum += kotlin.math.abs(luma - prevLumaInRow)
+                    }
+                    if (prevRow[x] >= 0) {
+                        edgeSum += kotlin.math.abs(luma - prevRow[x])
+                    }
+
+                    prevLumaInRow = luma
+                    prevRow[x] = luma
+                    x++
                 }
-                y += step
+                y++
             }
             scaled.recycle()
-            signature
+            if (sampleCount == 0) return null
+
+            val avgLuma = (lumaSum / sampleCount).toInt()
+            val avgEdge = (edgeSum / max(1, sampleCount * 2)).toInt()
+            AutoRegionSignature(avgLuma = avgLuma, edgeLuma = avgEdge)
         } catch (e: Exception) {
             null
         } finally {
@@ -1032,10 +1062,48 @@ class ScreenTranslationService : Service() {
     }
 
     private fun removeOverlayView() {
+        resultOverlayView?.setImageDrawable(null)
         safeRemoveView(resultOverlayView)
         resultOverlayView = null
-        currentOverlayBitmap?.recycle(); currentOverlayBitmap = null; currentOverlayCanvas = null
+        releaseCurrentOverlayBitmap()
         restoreOverlays()
+    }
+
+    private fun releaseCurrentOverlayBitmap(recycleDelayMs: Long = 64L) {
+        val oldBitmap = currentOverlayBitmap
+        currentOverlayBitmap = null
+        currentOverlayCanvas = null
+        if (oldBitmap != null && !oldBitmap.isRecycled) {
+            serviceScope.launch(Dispatchers.Main) {
+                delay(recycleDelayMs)
+                if (!oldBitmap.isRecycled) oldBitmap.recycle()
+            }
+        }
+    }
+
+    private suspend fun captureSignatureForAuto(rect: Rect): AutoRegionSignature? {
+        val shouldTemporarilyHideOverlay =
+            resultOverlayView?.visibility == View.VISIBLE && !isCaptureInProgress
+
+        if (shouldTemporarilyHideOverlay) {
+            withContext(Dispatchers.Main) {
+                resultOverlayView?.visibility = View.INVISIBLE
+            }
+            // Wait one frame so overlay exclusion is reflected in captured surface.
+            delay(16)
+        }
+
+        return try {
+            withContext(Dispatchers.Default) { captureRegionSignature(rect) }
+        } finally {
+            if (shouldTemporarilyHideOverlay) {
+                withContext(Dispatchers.Main) {
+                    if (!isCaptureInProgress) {
+                        resultOverlayView?.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
     }
 
     private fun restoreOverlays() {
@@ -1226,9 +1294,19 @@ class ScreenTranslationService : Service() {
     }
 
     private fun processTranslationWithAnimation(originalBitmap: Bitmap) {
+        val previousOverlayBitmap = currentOverlayBitmap
         currentOverlayBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
         currentOverlayCanvas = Canvas(currentOverlayBitmap!!)
         showOverlayView(currentOverlayBitmap!!)
+        if (previousOverlayBitmap != null &&
+            previousOverlayBitmap !== currentOverlayBitmap &&
+            !previousOverlayBitmap.isRecycled
+        ) {
+            serviceScope.launch(Dispatchers.Main) {
+                delay(32)
+                if (!previousOverlayBitmap.isRecycled) previousOverlayBitmap.recycle()
+            }
+        }
 
         serviceScope.launch {
             val translationDeferred = async(Dispatchers.IO) {
@@ -1384,9 +1462,8 @@ class ScreenTranslationService : Service() {
         super.onDestroy()
         serviceScope.cancel()
         reusableBitmap?.recycle(); reusableBitmap = null
-        currentOverlayBitmap?.recycle(); currentOverlayBitmap = null
-        safeRemoveView(floatingButton)
         removeOverlayView()
+        safeRemoveView(floatingButton)
         removeIndicatorOverlay()
         hideLoadingOverlay()
         stopAutoTranslateMonitoring()

@@ -18,6 +18,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +38,11 @@ import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private const val TAG = "MainActivity"
+        // Matches app/google-services.json (OAuth web client, type 3)
+        private const val GOOGLE_WEB_CLIENT_ID = "691923720143-m2dbnoal2cbc8vn6piu7c7gsi55p7lid.apps.googleusercontent.com"
+    }
 
     // [추가] 화면 번역 최초 사용 여부 키
     private val KEY_HAS_USED_SCREEN_TRANS = "has_used_screen_trans"
@@ -144,14 +150,30 @@ class MainActivity : AppCompatActivity() {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
                 val account = task.getResult(ApiException::class.java)!!
-                val credential = GoogleAuthProvider.getCredential(account.idToken!!, null)
+                val idToken = account.idToken
+                if (idToken.isNullOrBlank()) {
+                    Toast.makeText(this, "Google login failed: missing ID token", Toast.LENGTH_LONG).show()
+                    return@registerForActivityResult
+                }
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
                 auth.signInWithCredential(credential).addOnCompleteListener(this) { task ->
                     if (task.isSuccessful) {
                         viewModel.checkUserBalance()
                         updateUI(true)
+                    } else {
+                        Log.e(TAG, "Firebase sign-in with Google credential failed", task.exception)
+                        Toast.makeText(this, "Firebase login failed. Please try again.", Toast.LENGTH_LONG).show()
                     }
                 }
-            } catch (e: ApiException) { }
+            } catch (e: ApiException) {
+                Log.e(TAG, "Google sign-in failed. statusCode=${e.statusCode}", e)
+                val message = if (e.statusCode == 10) {
+                    "Google login config error (DEVELOPER_ERROR). Check OAuth client/SHA-1."
+                } else {
+                    "Google login failed. code=${e.statusCode}"
+                }
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -762,7 +784,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupLogin() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id))
+            .requestIdToken(GOOGLE_WEB_CLIENT_ID)
             .requestEmail()
             .build()
         val googleSignInClient = GoogleSignIn.getClient(this, gso)

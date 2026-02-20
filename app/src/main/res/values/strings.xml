@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">만화 번역기</string>
-    <string name="default_web_client_id">616292632519-le8h3dorb57o92vlpoo2853231muri9e.apps.googleusercontent.com</string>
+    <string name="default_web_client_id">691923720143-m2dbnoal2cbc8vn6piu7c7gsi55p7lid.apps.googleusercontent.com</string>
 
     <string-array name="app_language_options">
         <item>한국어</item>

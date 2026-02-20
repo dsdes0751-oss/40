@@ -1,5 +1,4 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as v1 from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -730,45 +729,3 @@ export const verifyPurchase = onCall({
     }
 });
 
-/**
- * [기능 3] 유저 생성 시 초기 보너스 지급
- */
-export const onUserCreated = v1.auth.user().onCreate(async (user: admin.auth.UserRecord) => {
-    const uid = user.uid;
-    const email = user.email || "";
-    console.log(`[User Created] New user detected: ${uid}`);
-
-    try {
-        await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(uid);
-            const userDoc = await transaction.get(userRef);
-
-            if (!userDoc.exists) {
-                transaction.set(userRef, {
-                    email: email,
-                    current_balance: 3,
-                    gold_balance: 3,
-                    vn_char_balance: 0,
-                    created_at: admin.firestore.FieldValue.serverTimestamp()
-                });
-
-                const txRef = userRef.collection("transactions").doc();
-                transaction.set(txRef, {
-                    uid,
-                    type: "BONUS",
-                    amount: 3,
-                    balance_snapshot: 3,
-                    currency: "Silver/Gold",
-                    description: "Welcome Bonus",
-                    timestamp: admin.firestore.FieldValue.serverTimestamp()
-                });
-                console.log(`[Bonus] ${uid} initialized (3 Silver, 3 Gold)`);
-            }
-        });
-        await db.collection("users").doc(uid).set({
-            vn_char_balance: 0
-        }, { merge: true });
-    } catch (e) {
-        console.error("[Bonus] initialization failed:", e);
-    }
-});
