@@ -1,13 +1,14 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.launch
 
@@ -30,6 +31,20 @@ class VnCreditChargeActivity : AppCompatActivity() {
         progressBalance = findViewById(R.id.progress_vn_balance)
         tvPercent = findViewById(R.id.tv_vn_percent)
         tvRemainingChars = findViewById(R.id.tv_vn_remaining_chars)
+
+        findViewById<Button>(R.id.btn_nav_main).setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            })
+            finish()
+        }
+
+        findViewById<Button>(R.id.btn_nav_library).setOnClickListener {
+            startActivity(Intent(this, LibraryActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            })
+            finish()
+        }
 
         findViewById<Button>(R.id.btn_vn_package_small).setOnClickListener {
             confirmPurchase(VnPackage("SMALL", 5000, 50))
@@ -69,7 +84,7 @@ class VnCreditChargeActivity : AppCompatActivity() {
 
     private fun confirmPurchase(pkg: VnPackage) {
         val message = getString(R.string.vn_top_up_confirm_message, pkg.silverCost, pkg.addChars)
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.vn_top_up_confirm_title)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok) { _, _ ->

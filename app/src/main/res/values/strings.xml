@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">만화 번역기</string>
     <string name="default_web_client_id">691923720143-m2dbnoal2cbc8vn6piu7c7gsi55p7lid.apps.googleusercontent.com</string>
 
@@ -26,7 +26,7 @@
     <string name="settings_title">내 정보 및 설정</string>
     <string name="settings_my_info">내 정보</string>
     <string name="settings_uid_label">UID: </string>
-    <string name="settings_transaction_history">재화 사용 내역 (실버/골드)</string>
+    <string name="settings_transaction_history">재화 사용 내역 (최근 50개)</string>
     <string name="settings_history_empty">내역이 없습니다.</string>
     <string name="settings_data_management">데이터 관리</string>
     <string name="settings_export_books">모든 책 다운로드 폴더로 내보내기</string>
@@ -66,8 +66,10 @@
     <string name="action_screen_trans_instant">화면 바로번역</string>
     <string name="action_screen_trans_auto">자동 화면번역</string>
     <string name="action_select_image_title">이미지 불러오기</string>
+    <string name="action_select_image_hint_mass">대량번역을 시작해보세요.</string>
     <string name="action_select_image_desc">갤러리에서 만화를 선택해\n번역을 시작하세요</string>
     <string name="library_title">내 서재</string>
+    <string name="library_empty_message">서재가 비어있습니다.\n소설번역이나 대량번역을 시작해 보세요.</string>
     <string name="btn_read">읽기</string>
     <string name="btn_login">로그인</string>
 
@@ -75,7 +77,27 @@
     <string name="main_silver_default">0 S</string>
     <string name="main_gold_default">0 G</string>
     <string name="main_arrow">→</string>
-    <string name="main_model_advanced">모델: 고급 번역 (실버)</string>
+    <string name="main_model_advanced">번역 모드: 균형</string>
+    <string name="main_mode_standard">번역 모드: 빠름 (무료)</string>
+    <string name="main_mode_balanced">번역 모드: 균형 (실버 1/회)</string>
+    <string name="main_mode_precise">번역 모드: 정밀 (골드 1/회)</string>
+    <string name="main_mode_cost_guide">빠름: 무료 · 균형: 실버 1회 차감 · 정밀: 골드 1회 차감</string>
+    <string name="source_language_label">원본 언어</string>
+    <string name="target_language_label">번역 언어</string>
+    <string name="model_sheet_title">번역 모드 선택</string>
+    <string name="model_sheet_balance_format">보유 재화  실버 %1$d · 골드 %2$d</string>
+    <string name="model_mode_standard">빠름</string>
+    <string name="model_mode_standard_desc">기본 품질로 가장 빠르게 처리 · 무료</string>
+    <string name="model_mode_balanced">균형</string>
+    <string name="model_mode_balanced_desc">속도와 품질의 균형 · 이미지/화면 1회당 실버 1</string>
+    <string name="model_recommended_badge">추천</string>
+    <string name="model_mode_precise">정밀</string>
+    <string name="model_mode_precise_desc">더 높은 품질로 꼼꼼하게 번역 · 이미지/화면 1회당 골드 1</string>
+    <string name="model_precise_warning_title">정밀 모드 안내</string>
+    <string name="model_precise_warning_message">정밀 모드는 품질이 높지만 화면 번역 속도가 느려질 수 있습니다.</string>
+    <string name="model_balanced_notice_title">번역 모드 안내</string>
+    <string name="model_balanced_notice_message">대량 이미지 번역에서는 정밀 모드가 더 자연스러운 결과를 낼 수 있습니다.</string>
+    <string name="dialog_never_show_again">다시 보지 않기</string>
     <string name="main_status_idle">대기 중</string>
     <string name="main_stop">작업 중단</string>
 
@@ -87,7 +109,7 @@
     <string name="help_step3_title">3. 영역 선택 및 번역</string>
     <string name="help_step3_desc">다른 앱(웹툰, 만화 뷰어 등)으로 이동한 뒤, 플로팅 버튼을 누르세요. 화면이 어두워지면 번역하고 싶은 영역을 드래그하여 선택합니다. 잠시 후 자동으로 번역된 텍스트가 표시됩니다.</string>
     <string name="help_step4_title">4. 팁</string>
-    <string name="help_step4_desc">- 텍스트가 잘 보이도록 영역을 정확하게 선택하면 번역 품질이 좋아집니다.\n- 고급 모델(실버/골드)을 사용하면 더 자연스러운 번역이 가능합니다.</string>
+    <string name="help_step4_desc">- 텍스트가 잘 보이도록 영역을 정확하게 선택하면 번역 품질이 좋아집니다.\n- 상황에 맞는 번역 모드를 선택하면 결과를 더 안정적으로 얻을 수 있습니다.</string>
     <string name="help_confirm">확인했습니다</string>
 
     <string name="viewer_loading">번역하는 중...</string>
@@ -122,7 +144,7 @@
     <string name="nav_main">메인</string>
     <string name="nav_library">서재</string>
     <string name="action_novel_translation_title">소설번역</string>
-    <string name="novel_translation_hint">TXT 파일만 업로드 가능하며, 텍스트 직접 붙여넣기도 지원합니다. 모델과 타겟 언어를 상단에서 선택하세요.</string>
+    <string name="novel_translation_hint">TXT 파일만 업로드 가능하며, 텍스트 직접 붙여넣기도 지원합니다. 번역 모드와 번역 언어를 상단에서 선택하세요.</string>
     <string name="novel_translation_pick_txt">TXT 불러오기</string>
     <string name="novel_translation_input_hint">번역할 소설 텍스트를 붙여넣으세요.</string>
     <string name="novel_translation_complete">완료</string>
@@ -137,7 +159,10 @@
 
 확인 후 약 1분 동안 번역이 진행됩니다.</string>
     <string name="novel_translation_use_silver">OK (실버 사용)</string>
-    <string name="novel_translation_model_label">모델 선택</string>
+    <string name="novel_translation_model_label">번역 모드</string>
+    <string name="novel_mode_balanced_cost">균형 (100자당 2실버)</string>
+    <string name="novel_mode_precise_cost">정밀 (100자당 20실버)</string>
+    <string name="novel_translation_mode_cost_guide">균형: 100자당 2실버 · 정밀: 100자당 20실버</string>
     <string name="novel_translation_target_lang_label">타겟 언어</string>
     <string name="novel_translation_background_notice">번역은 약 1분 정도 걸리며, 앱을 나가도 백그라운드에서 계속 진행됩니다.</string>
     <string name="novel_translation_start_in_background">백그라운드에서 시작</string>
@@ -149,8 +174,8 @@
     <string name="novel_translation_notification_failed">소설 번역에 실패했습니다.</string>
 
     <string-array name="novel_translation_model_options">
-        <item>고급 모델 (gemini-3-flash-preview, 100자당 2실버)</item>
-        <item>프로 모델 (gemini-3-pro-preview, 100자당 20실버)</item>
+        <item>균형 모드 (100자당 2실버)</item>
+        <item>정밀 모드 (100자당 20실버)</item>
     </string-array>
 
     <string-array name="novel_translation_target_lang_options">
@@ -163,6 +188,30 @@
     <string name="novel_translation_done">번역 완료! %1$d 실버가 차감되었습니다.</string>
     <string name="novel_translation_login_needed">로그인이 필요합니다.</string>
     <string name="translation_running_block_message">%1$s 진행 중에는 다른 번역을 시작할 수 없습니다.</string>
+    <string name="settings_history_type_screen_manual">화면 바로번역</string>
+    <string name="settings_history_type_screen_auto">자동 화면번역</string>
+    <string name="settings_history_type_screen">화면 번역</string>
+    <string name="settings_history_type_manga_batch">대량 이미지 번역</string>
+    <string name="settings_history_type_novel">소설 번역</string>
+    <string name="settings_history_type_vn_fast">비주얼노벨 자동 번역</string>
+    <string name="settings_history_type_vn_topup">VN 크레딧 충전</string>
+    <string name="settings_history_type_charge">재화 충전</string>
+    <string name="settings_history_type_refund">환불</string>
+    <string name="settings_history_type_unknown">기타</string>
+    <string name="settings_history_currency_silver">실버</string>
+    <string name="settings_history_currency_gold">골드</string>
+    <string name="settings_history_currency_vn_chars">VN 크레딧</string>
+    <string name="settings_history_currency_free">무료</string>
+    <string name="settings_history_subtitle_format">모드: %1$s · 재화: %2$s</string>
+    <string name="settings_history_bulk_subtitle_format">모드: %1$s · 재화: %2$s · 합계 %3$d장</string>
+    <string name="settings_history_bulk_interrupted_suffix"> · 중단됨</string>
+    <string name="settings_history_package_subtitle_format">패키지: %1$s · 재화: %2$s</string>
+    <string name="settings_history_chars_subtitle_format">사용 글자: %1$,d자 · 재화: %2$s</string>
+    <string name="settings_history_amount_silver_format">%1$+d S</string>
+    <string name="settings_history_amount_gold_format">%1$+d G</string>
+    <string name="settings_history_amount_chars_format">%1$+d자</string>
+    <string name="settings_history_amount_status_stopped">중단</string>
+    <string name="settings_history_amount_status_info">기록</string>
     <string name="novel_viewer_settings_title">책 설정</string>
     <string name="novel_viewer_export_txt">TXT 파일로 내보내기</string>
     <string name="novel_viewer_export_done">TXT 내보내기가 완료되었습니다.</string>

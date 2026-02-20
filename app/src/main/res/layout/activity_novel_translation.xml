@@ -1,9 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:background="@color/bg_app"
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,49 +17,73 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/action_novel_translation_title"
-            android:textStyle="bold"
-            android:textSize="20sp"
-            android:textColor="#1E1E1E" />
+            android:textAppearance="@style/TextAppearance.App.Title" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/novel_translation_hint"
-            android:textColor="#757575" />
+            android:textColor="@color/text_secondary" />
 
-        <TextView
+        <androidx.cardview.widget.CardView
+            style="@style/Widget.Proj01.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/novel_translation_model_label"
-            android:textStyle="bold" />
+            android:layout_marginTop="12dp">
 
-        <Spinner
-            android:id="@+id/spinner_model_tier"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="14dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/novel_translation_target_lang_label"
-            android:textStyle="bold" />
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Proj01.TextInputLayout.Dropdown"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/novel_translation_model_label">
 
-        <Spinner
-            android:id="@+id/spinner_target_lang"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp" />
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/spinner_model_tier"
+                        style="@style/Widget.Proj01.AutoCompleteTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-        <Button
-            android:id="@+id/btn_pick_txt"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/novel_translation_pick_txt" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/novel_translation_mode_cost_guide"
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Proj01.TextInputLayout.Dropdown"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:hint="@string/novel_translation_target_lang_label">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/spinner_target_lang"
+                        style="@style/Widget.Proj01.AutoCompleteTextView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <Button
+                    android:id="@+id/btn_pick_txt"
+                    style="@style/Widget.Proj01.Button.Secondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/novel_translation_pick_txt" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
         <EditText
             android:id="@+id/et_novel_input"
@@ -66,19 +91,21 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_marginTop="12dp"
-            android:background="#FFFFFF"
+            android:background="@color/bg_surface"
             android:gravity="top|start"
             android:hint="@string/novel_translation_input_hint"
             android:inputType="textMultiLine|textCapSentences"
             android:minHeight="200dp"
-            android:padding="12dp" />
+            android:padding="14dp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/novel_translation_background_notice"
-            android:textColor="#757575"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
         <ProgressBar
@@ -86,11 +113,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:visibility="gone"
-            android:layout_marginTop="12dp" />
+            android:layout_marginTop="12dp"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/btn_complete_novel"
+            style="@style/Widget.Proj01.Button.Primary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -100,16 +128,16 @@
 
     <LinearLayout
         android:id="@+id/bottom_nav"
+        style="@style/Widget.Proj01.BottomNavContainer"
         android:layout_width="match_parent"
         android:layout_height="72dp"
-        android:background="#FFFFFF"
-        android:elevation="10dp"
         android:orientation="horizontal"
         android:padding="12dp"
         android:weightSum="2">
 
         <Button
             android:id="@+id/btn_nav_main"
+            style="@style/Widget.Proj01.BottomNavButton.Inactive"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -117,6 +145,7 @@
 
         <Button
             android:id="@+id/btn_nav_library"
+            style="@style/Widget.Proj01.BottomNavButton.Inactive"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="8dp"

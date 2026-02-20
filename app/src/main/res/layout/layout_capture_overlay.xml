@@ -1,41 +1,42 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/panel_controls"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="#99000000"
-    android:padding="8dp"
+    android:background="@color/bg_scrim"
     android:elevation="6dp"
     android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="8dp"
     android:visibility="visible">
 
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <CheckBox
             android:id="@+id/cb_fix_area"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:buttonTint="@color/text_inverse"
             android:text="@string/overlay_pin_area"
-            android:textColor="#FFFFFF"
-            android:buttonTint="#FFFFFF"
-            android:textSize="14sp"
-            android:layout_marginEnd="12dp"/>
+            android:textColor="@color/text_inverse"
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/btn_confirm_area"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:text="@string/overlay_start_translation"
-            android:textSize="13sp"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#4CAF50"
+            android:backgroundTint="@color/status_success"
+            android:insetBottom="0dp"
             android:insetTop="0dp"
-            android:insetBottom="0dp"/>
+            android:minHeight="36dp"
+            android:text="@string/overlay_start_translation"
+            android:textColor="@color/text_inverse"
+            android:textSize="13sp" />
 
     </LinearLayout>
 

@@ -1,42 +1,46 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:background="@color/bg_app"
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:orientation="horizontal"
+        android:background="@color/bg_surface"
         android:gravity="center_vertical"
-        android:paddingHorizontal="12dp"
-        android:background="#FAFAFA">
+        android:minHeight="56dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp">
 
         <ImageButton
             android:id="@+id/btn_close"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/common_back"
             android:src="@drawable/ic_arrow_back_24"
-            android:contentDescription="close" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:id="@+id/tv_novel_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textStyle="bold"
+            android:textColor="@color/text_primary"
             android:textSize="16sp"
-            android:textColor="#1E1E1E" />
+            android:textStyle="bold" />
 
         <ImageButton
             android:id="@+id/btn_novel_settings"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/main_settings"
             android:src="@drawable/ic_settings_24"
-            android:contentDescription="settings" />
+            app:tint="@color/text_primary" />
     </LinearLayout>
 
     <ScrollView
@@ -47,9 +51,9 @@
             android:id="@+id/tv_novel_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:lineSpacingExtra="6dp"
             android:padding="16dp"
-            android:textSize="16sp"
-            android:textColor="#111111"
-            android:lineSpacingExtra="6dp" />
+            android:textColor="@color/text_primary"
+            android:textSize="16sp" />
     </ScrollView>
 </LinearLayout>

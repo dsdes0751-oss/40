@@ -1,25 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 기본 -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Brand Colors -->
-    <color name="primary_blue">#3182F6</color>
-    <color name="primary_blue_pressed">#1B64DA</color>
+    <!-- 프리미엄 다크 퍼스트 토큰 -->
+    <!-- 브랜드 -->
+    <color name="brand_primary">#3F66D7</color>
+    <color name="brand_primary_pressed">#2E4FB2</color>
+    <color name="brand_on_primary">#F7F9FF</color>
+    <color name="brand_secondary">#6C7FAF</color>
+    <color name="accent_amber">#B77D21</color>
 
-    <!-- Backgrounds -->
-    <color name="background_light">#F2F4F6</color>
-    <color name="background_white">#FFFFFF</color>
-    <color name="background_viewer">#121212</color>
-    <color name="background_overlay">#80000000</color>
+    <!-- 배경/표면 -->
+    <color name="bg_app">#F2F4F8</color>
+    <color name="bg_surface">#FFFFFF</color>
+    <color name="bg_surface_alt">#E9EDF5</color>
+    <color name="bg_surface_elevated">#FFFFFF</color>
+    <color name="bg_viewer">#121821</color>
+    <color name="bg_scrim">#A6000000</color>
+    <color name="bg_chip">#DDE6F6</color>
+    <color name="nav_active_bg">#3F66D7</color>
+    <color name="nav_inactive_bg">#E3E8F2</color>
 
-    <!-- Text -->
-    <color name="text_primary">#191F28</color>
-    <color name="text_secondary">#8B95A1</color>
-    <color name="text_white">#FFFFFF</color>
+    <!-- 텍스트 -->
+    <color name="text_primary">#131B2B</color>
+    <color name="text_secondary">#56627A</color>
+    <color name="text_muted">#74829B</color>
+    <color name="text_inverse">#F7F9FF</color>
+    <color name="text_on_amber">#2A1A00</color>
 
-    <!-- UI Elements -->
-    <color name="divider">#E5E8EB</color>
-    <color name="error_red">#FF3B30</color>
-    <color name="card_shadow">#1A000000</color>
+    <!-- 경계/상태 -->
+    <color name="border_subtle">#D2D9E7</color>
+    <color name="border_strong">#B6C0D6</color>
+    <color name="status_success">#1B8D5C</color>
+    <color name="status_error">#C94456</color>
+    <color name="status_warning">#B77D21</color>
+    <color name="status_info">#2E78CE</color>
+    <color name="status_new_badge_bg">#CC0A1020</color>
+    <color name="status_new_badge_text">#74B7FF</color>
+
+    <!-- 티어 -->
+    <color name="tier_standard">#7F8CA6</color>
+    <color name="tier_advanced">#B8C4D9</color>
+    <color name="tier_pro">#E9CC82</color>
+
+    <!-- 레거시 호환 alias -->
+    <color name="primary_blue">@color/brand_primary</color>
+    <color name="primary_blue_pressed">@color/brand_primary_pressed</color>
+    <color name="background_light">@color/bg_app</color>
+    <color name="background_white">@color/bg_surface</color>
+    <color name="background_viewer">@color/bg_viewer</color>
+    <color name="background_overlay">@color/bg_scrim</color>
+    <color name="text_white">@color/text_inverse</color>
+    <color name="divider">@color/border_subtle</color>
+    <color name="error_red">@color/status_error</color>
+    <color name="card_shadow">#40000000</color>
 </resources>

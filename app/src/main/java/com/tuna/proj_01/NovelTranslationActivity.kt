@@ -1,4 +1,4 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
 import android.content.Intent
 import android.net.Uri
@@ -9,24 +9,45 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
-import android.widget.Spinner
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.firebase.auth.FirebaseAuth
 import kotlin.math.floor
 
 class NovelTranslationActivity : AppCompatActivity() {
 
+    private data class TargetLangOption(
+        val label: String,
+        val code: String
+    )
+
     private lateinit var etInput: EditText
     private lateinit var progressBar: ProgressBar
     private lateinit var btnComplete: Button
-    private lateinit var spinnerModelTier: Spinner
-    private lateinit var spinnerTargetLang: Spinner
+    private lateinit var spinnerModelTier: MaterialAutoCompleteTextView
+    private lateinit var spinnerTargetLang: MaterialAutoCompleteTextView
     private lateinit var btnNavMain: Button
     private lateinit var btnNavLibrary: Button
+
+    private val modelLabels by lazy {
+        listOf(
+            getString(R.string.novel_mode_balanced_cost),
+            getString(R.string.novel_mode_precise_cost)
+        )
+    }
+
+    private val targetLangOptions by lazy {
+        listOf(
+            TargetLangOption(getString(R.string.vn_lang_korean), "KO"),
+            TargetLangOption(getString(R.string.vn_lang_english), "EN"),
+            TargetLangOption(getString(R.string.vn_lang_japanese), "JA"),
+            TargetLangOption(getString(R.string.vn_lang_chinese), "ZH")
+        )
+    }
 
     private val txtPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -55,7 +76,7 @@ class NovelTranslationActivity : AppCompatActivity() {
         btnNavMain = findViewById(R.id.btn_nav_main)
         btnNavLibrary = findViewById(R.id.btn_nav_library)
 
-        setupSpinners()
+        setupDropdowns()
 
         findViewById<Button>(R.id.btn_pick_txt).setOnClickListener {
             txtPickerLauncher.launch("text/plain")
@@ -104,28 +125,17 @@ class NovelTranslationActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupSpinners() {
-        ArrayAdapter.createFromResource(
-            this,
-            R.array.novel_translation_model_options,
-            android.R.layout.simple_spinner_item
-        ).also { adapter ->
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            spinnerModelTier.adapter = adapter
-        }
+    private fun setupDropdowns() {
+        spinnerModelTier.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, modelLabels))
+        spinnerModelTier.setText(modelLabels.first(), false)
 
-        ArrayAdapter.createFromResource(
-            this,
-            R.array.novel_translation_target_lang_options,
-            android.R.layout.simple_spinner_item
-        ).also { adapter ->
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            spinnerTargetLang.adapter = adapter
-        }
+        val targetLabels = targetLangOptions.map { it.label }
+        spinnerTargetLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, targetLabels))
+        spinnerTargetLang.setText(targetLabels.first(), false)
     }
 
     private fun showCostDialog(source: String, targetLangCode: String, modelTier: String, requiredCoin: Long) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.novel_translation_cost_title))
             .setMessage(
                 getString(
@@ -147,7 +157,7 @@ class NovelTranslationActivity : AppCompatActivity() {
         modelTier: String
     ) {
         if (TranslationWorkState.isAnyTranslationRunning(this)) {
-            val runningTask = TranslationWorkState.runningTaskName(this) ?: "다른 번역"
+            val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
             Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
             return
         }
@@ -167,19 +177,15 @@ class NovelTranslationActivity : AppCompatActivity() {
     }
 
     private fun selectedModelTier(): String {
-        return if (spinnerModelTier.selectedItemPosition == 1) "PRO" else "ADVANCED"
+        val selectedIndex = modelLabels.indexOf(spinnerModelTier.text.toString())
+        return if (selectedIndex == 1) "PRO" else "ADVANCED"
     }
 
     private fun selectedTargetLangCode(): String {
-        return when (spinnerTargetLang.selectedItemPosition) {
-            1 -> "EN"
-            2 -> "JA"
-            3 -> "ZH"
-            else -> "KO"
-        }
+        val selected = spinnerTargetLang.text.toString()
+        return targetLangOptions.firstOrNull { it.label == selected }?.code ?: "KO"
     }
 
-    // [변경] 소설 번역 비용 인하: 고급 모델 100자당 3실버 → 2실버
     private fun calculateRequiredSilver(charCount: Int, modelTier: String): Long {
         val rate = if (modelTier == "PRO") 20.0 else 2.0
         return floor((charCount * rate) / 100.0).toLong()

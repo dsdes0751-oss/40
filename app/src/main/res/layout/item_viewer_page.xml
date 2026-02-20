@@ -16,7 +16,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:indeterminateTint="#FFFFFF"
+        android:indeterminateTint="@color/text_inverse"
         android:visibility="visible" />
 
     <!-- 3. (선택) 로딩 실패 시 보여줄 아이콘/텍스트 -->
@@ -26,7 +26,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:text="@string/viewer_error"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_inverse"
         android:visibility="gone" />
 
 </FrameLayout>

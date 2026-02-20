@@ -1,4 +1,4 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.media.projection.MediaProjectionManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -19,6 +18,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,6 +33,9 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
@@ -44,7 +47,7 @@ class MainActivity : AppCompatActivity() {
         private const val GOOGLE_WEB_CLIENT_ID = "691923720143-m2dbnoal2cbc8vn6piu7c7gsi55p7lid.apps.googleusercontent.com"
     }
 
-    // [추가] 화면 번역 최초 사용 여부 키
+    // [異붽?] ?붾㈃ 踰덉뿭 理쒖큹 ?ъ슜 ?щ? ??
     private val KEY_HAS_USED_SCREEN_TRANS = "has_used_screen_trans"
 
     private val viewModel: MainViewModel by viewModels()
@@ -55,7 +58,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var cardSilverInfo: CardView
     private lateinit var tvSilverBalance: TextView
-    private lateinit var tvGoldBalance: TextView // [추가]
+    private lateinit var tvGoldBalance: TextView // [異붽?]
     private lateinit var btnStore: LinearLayout
 
     private lateinit var btnSettings: ImageView
@@ -67,22 +70,22 @@ class MainActivity : AppCompatActivity() {
     // Action Cards
     private lateinit var btnSelectOverlay: View
     private lateinit var btnScreenTransOverlay: View
-    private lateinit var btnAutoScreenTrans: View  // [추가] 자동 화면번역 버튼
+    private lateinit var btnAutoScreenTrans: View  // [異붽?] ?먮룞 ?붾㈃踰덉뿭 踰꾪듉
     private lateinit var btnNovelTranslation: View
     private lateinit var btnVnGameTranslation: View
 
     // UI Elements for updates
     private lateinit var tvTransTitle: TextView
     private lateinit var ivTransIcon: ImageView
-    private lateinit var ivAutoTransIcon: ImageView  // [추가] 자동 번역 아이콘
-    private lateinit var tvAutoTransTitle: TextView   // [추가] 자동 번역 타이틀
+    private lateinit var ivAutoTransIcon: ImageView  // [異붽?] ?먮룞 踰덉뿭 ?꾩씠肄?
+    private lateinit var tvAutoTransTitle: TextView   // [異붽?] ?먮룞 踰덉뿭 ??댄?
 
-    private var pendingAutoMode = false  // [추가] 자동 모드 대기 플래그
+    private var pendingAutoMode = false  // [異붽?] ?먮룞 紐⑤뱶 ?湲??뚮옒洹?
 
-    private lateinit var spinnerLang: Spinner
-    private lateinit var spinnerTargetLang: Spinner
-    private lateinit var btnModelSelect: TextView // [추가]
-    private lateinit var cardModelSelect: CardView // [추가]
+    private lateinit var spinnerLang: com.google.android.material.textfield.MaterialAutoCompleteTextView
+    private lateinit var spinnerTargetLang: com.google.android.material.textfield.MaterialAutoCompleteTextView
+    private lateinit var btnModelSelect: TextView // [異붽?]
+    private lateinit var cardModelSelect: CardView // [異붽?]
 
     private lateinit var mediaProjectionManager: MediaProjectionManager
     private lateinit var auth: FirebaseAuth
@@ -92,11 +95,13 @@ class MainActivity : AppCompatActivity() {
     private var isServiceRunning = false
     private var originalIconColor: ColorStateList? = null
 
-    // 현재 선택된 모델 (기본값: ADVANCED)
+    // ?꾩옱 ?좏깮??紐⑤뜽 (湲곕낯媛? ADVANCED)
     private var currentModelTier = "ADVANCED"
 
     private val MAX_FILE_SIZE_MB = 20
     private val MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+    private val sourceLanguages = arrayOf("Japanese", "English", "Korean", "Chinese")
+    private val targetLanguages = arrayOf("English", "Korean", "Japanese", "Chinese")
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -104,22 +109,22 @@ class MainActivity : AppCompatActivity() {
         if (!isGranted) {
             showPermissionDeniedDialog()
         } else {
-            Toast.makeText(this, "알림 권한이 허용되었습니다.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "?뚮┝ 沅뚰븳???덉슜?섏뿀?듬땲??", Toast.LENGTH_SHORT).show()
         }
     }
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isNotEmpty()) {
             if (!isNetworkAvailable()) {
-                Toast.makeText(this, "인터넷 연결을 OK해주세요.", Toast.LENGTH_SHORT).show()
-                updateStatus("인터넷 연결이 필요합니다.")
+                Toast.makeText(this, "?명꽣???곌껐??OK?댁＜?몄슂.", Toast.LENGTH_SHORT).show()
+                updateStatus("?명꽣???곌껐???꾩슂?⑸땲??")
                 return@registerForActivityResult
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "알림 권한이 없어 백그라운드 진행 상황이 표시되지 않을 수 있습니다.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "?뚮┝ 沅뚰븳???놁뼱 諛깃렇?쇱슫??吏꾪뻾 ?곹솴???쒖떆?섏? ?딆쓣 ???덉뒿?덈떎.", Toast.LENGTH_LONG).show()
                 }
             }
 
@@ -127,15 +132,15 @@ class MainActivity : AppCompatActivity() {
 
             if (validUris.isNotEmpty()) {
                 if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                    val runningTask = TranslationWorkState.runningTaskName(this) ?: "다른 번역"
+                    val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
                     Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                     return@registerForActivityResult
                 }
 
-                val selectedLang = spinnerLang.selectedItem.toString()
-                val selectedTargetLang = spinnerTargetLang.selectedItem.toString()
+                val selectedLang = currentSourceLang()
+                val selectedTargetLang = currentTargetLang()
 
-                // [변경] ADVANCED 경고는 btnSelectOverlay 클릭 시 처리로 이동
+                // [蹂寃? ADVANCED 寃쎄퀬??btnSelectOverlay ?대┃ ??泥섎━濡??대룞
                 viewModel.processImages(validUris, selectedLang, selectedTargetLang, currentModelTier)
             } else {
                 updateStatus("All selected images exceed size limit (${MAX_FILE_SIZE_MB}MB).")
@@ -247,7 +252,7 @@ class MainActivity : AppCompatActivity() {
     private fun showPermissionDeniedDialog() {
         AlertDialog.Builder(this)
             .setTitle("Notification permission required")
-            .setMessage("알림 권한이 거부되어 번역 진행 상황을 OK할 수 없습니다.\n\n설정 > 알림에서 권한을 허용해주세요.")
+            .setMessage("?뚮┝ 沅뚰븳??嫄곕??섏뼱 踰덉뿭 吏꾪뻾 ?곹솴??OK?????놁뒿?덈떎.\n\n?ㅼ젙 > ?뚮┝?먯꽌 沅뚰븳???덉슜?댁＜?몄슂.")
             .setPositiveButton("Open settings") { _, _ ->
                 try {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -372,7 +377,7 @@ class MainActivity : AppCompatActivity() {
 
         cardSilverInfo = findViewById(R.id.card_silver_info)
         tvSilverBalance = findViewById(R.id.tv_silver_balance)
-        tvGoldBalance = findViewById(R.id.tv_gold_balance) // [추가]
+        tvGoldBalance = findViewById(R.id.tv_gold_balance) // [異붽?]
         btnStore = findViewById(R.id.btn_store)
 
         btnSettings = findViewById(R.id.btn_settings)
@@ -383,14 +388,15 @@ class MainActivity : AppCompatActivity() {
 
         spinnerLang = findViewById(R.id.spinner_lang)
 
-        // [추가] 모델 선택
+        // [異붽?] 紐⑤뜽 ?좏깮
         btnModelSelect = findViewById(R.id.btn_model_select)
         cardModelSelect = findViewById(R.id.card_model_select)
-        btnModelSelect.setOnClickListener { showModelSelectionDialog() }
+        btnModelSelect.setOnClickListener { showModelSelectionSheet() }
+        updateModelButtonUI()
 
         btnSelectOverlay = findViewById(R.id.btn_select_images)
         btnScreenTransOverlay = findViewById(R.id.btn_screen_trans)
-        btnAutoScreenTrans = findViewById(R.id.btn_auto_screen_trans) // [추가]
+        btnAutoScreenTrans = findViewById(R.id.btn_auto_screen_trans) // [異붽?]
         btnNovelTranslation = findViewById(R.id.btn_novel_translation)
         btnVnGameTranslation = findViewById(R.id.btn_vn_game_translation_main)
 
@@ -398,70 +404,56 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, LibraryActivity::class.java))
         }
 
-        // [수정] 도움말 버튼 연결 (헤더 위치)
+        // [?섏젙] ?꾩?留?踰꾪듉 ?곌껐 (?ㅻ뜑 ?꾩튂)
         findViewById<View>(R.id.btnScreenTransHelp).setOnClickListener { showGuideDialog() }
-        // 이미지 선택 카드 도움말 버튼 (기존)
-        findViewById<View>(R.id.btn_help_image).setOnClickListener { startActivity(Intent(this, HelpActivity::class.java)) }
 
         tvTransTitle = findViewById(R.id.tv_trans_title)
         ivTransIcon = findViewById(R.id.iv_trans_icon)
-        ivAutoTransIcon = findViewById(R.id.iv_auto_trans_icon) // [추가]
-        tvAutoTransTitle = findViewById(R.id.tv_auto_trans_title) // [추가]
+        ivAutoTransIcon = findViewById(R.id.iv_auto_trans_icon) // [異붽?]
+        tvAutoTransTitle = findViewById(R.id.tv_auto_trans_title) // [異붽?]
 
         originalIconColor = ivTransIcon.imageTintList
 
-        // 원문 언어 스피너
-        val languages = arrayOf("Japanese", "English", "Korean", "Chinese")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, languages)
-        spinnerLang.adapter = adapter
-
-        spinnerLang.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (isServiceRunning) {
-                    val selectedLang = languages[position]
-                    val intent = Intent(this@MainActivity, ScreenTranslationService::class.java).apply {
-                        action = ScreenTranslationService.ACTION_UPDATE_LANG
-                        putExtra("sourceLang", selectedLang)
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        // 목표 언어 스피너
+        // ?먮Ц ?몄뼱 ?ㅽ뵾??
         spinnerTargetLang = findViewById(R.id.spinner_target_lang)
-        val targetLanguages = arrayOf("English", "Korean", "Japanese", "Chinese")
-        val targetAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, targetLanguages)
-        spinnerTargetLang.adapter = targetAdapter
 
-        // 저장된 목표 언어 복원
+        spinnerLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, sourceLanguages))
+        spinnerTargetLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, targetLanguages))
+        spinnerLang.setText(sourceLanguages.first(), false)
+
         val savedTargetLang = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            .getString("target_lang", "Korean") ?: "Korean"
-        val targetIndex = targetLanguages.indexOf(savedTargetLang)
-        if (targetIndex >= 0) spinnerTargetLang.setSelection(targetIndex)
+            .getString("target_lang", targetLanguages.first()) ?: targetLanguages.first()
+        val initialTarget = if (targetLanguages.contains(savedTargetLang)) savedTargetLang else targetLanguages.first()
+        spinnerTargetLang.setText(initialTarget, false)
 
-        spinnerTargetLang.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val selectedTargetLang = targetLanguages[position]
-                getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    .edit().putString("target_lang", selectedTargetLang).apply()
-
-                if (isServiceRunning) {
-                    val intent = Intent(this@MainActivity, ScreenTranslationService::class.java).apply {
-                        action = ScreenTranslationService.ACTION_UPDATE_TARGET_LANG
-                        putExtra("targetLang", selectedTargetLang)
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+        spinnerLang.setOnItemClickListener { _, _, _, _ ->
+            if (isServiceRunning) {
+                val intent = Intent(this@MainActivity, ScreenTranslationService::class.java).apply {
+                    action = ScreenTranslationService.ACTION_UPDATE_LANG
+                    putExtra("sourceLang", currentSourceLang())
                 }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
             }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // [변경] 대량 번역: 로그인 체크 + ADVANCED 경고 시점 이동 (이미지 불러오기 버튼 클릭 시)
+        spinnerTargetLang.setOnItemClickListener { _, _, _, _ ->
+            val selectedTargetLang = currentTargetLang()
+            getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                .edit().putString("target_lang", selectedTargetLang).apply()
+
+            if (isServiceRunning) {
+                val intent = Intent(this@MainActivity, ScreenTranslationService::class.java).apply {
+                    action = ScreenTranslationService.ACTION_UPDATE_TARGET_LANG
+                    putExtra("targetLang", selectedTargetLang)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+            }
+        }
+
+        // [蹂寃? ???踰덉뿭: 濡쒓렇??泥댄겕 + ADVANCED 寃쎄퀬 ?쒖젏 ?대룞 (?대?吏 遺덈윭?ㅺ린 踰꾪듉 ?대┃ ??
         btnSelectOverlay.setOnClickListener {
             if (auth.currentUser == null) {
-                Toast.makeText(this, "로그인을 먼저 해주세요", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "濡쒓렇?몄쓣 癒쇱? ?댁＜?몄슂", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -470,16 +462,16 @@ class MainActivity : AppCompatActivity() {
                 if (prefs.getBoolean("skip_advanced_mass_warning", false)) {
                     pickImagesLauncher.launch("image/*")
                 } else {
-                    val cb = CheckBox(this).apply { text = "다시 보지 않기"; setPadding(40, 20, 40, 0) }
-                    AlertDialog.Builder(this)
-                        .setTitle("경고")
-                        .setMessage("대량 번역에 실버 모델을 사용하면 퀄리티가 좋지 않으니 골드 모델을 추천합니다.")
-                        .setView(cb)
-                        .setPositiveButton("확인") { _, _ ->
+                    val (dontShowAgainView, cb) = createCenteredDontShowAgainView()
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(getString(R.string.model_balanced_notice_title))
+                        .setMessage(getString(R.string.model_balanced_notice_message))
+                        .setView(dontShowAgainView)
+                        .setPositiveButton(android.R.string.ok) { _, _ ->
                             if (cb.isChecked) prefs.edit().putBoolean("skip_advanced_mass_warning", true).apply()
                             pickImagesLauncher.launch("image/*")
                         }
-                        .setNegativeButton("취소", null)
+                        .setNegativeButton(android.R.string.cancel, null)
                         .show()
                 }
             } else {
@@ -489,7 +481,7 @@ class MainActivity : AppCompatActivity() {
 
         btnNovelTranslation.setOnClickListener {
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                val runningTask = TranslationWorkState.runningTaskName(this) ?: "다른 번역"
+                val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
                 Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
@@ -498,7 +490,7 @@ class MainActivity : AppCompatActivity() {
 
         btnVnGameTranslation.setOnClickListener {
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                val runningTask = TranslationWorkState.runningTaskName(this) ?: "다른 번역"
+                val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
                 Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
@@ -508,34 +500,34 @@ class MainActivity : AppCompatActivity() {
         btnStopWork.setOnClickListener {
             viewModel.stopTranslation()
 
-            // UI 즉시 업데이트
+            // UI 利됱떆 ?낅뜲?댄듃
             btnStopWork.isEnabled = false
             tvStatus.text = "Stopping..."
         }
 
-        // [수정] 화면 바로번역 버튼 리스너 (최초 실행 도움말 체크 + 로그인 체크 포함)
+        // [?섏젙] ?붾㈃ 諛붾줈踰덉뿭 踰꾪듉 由ъ뒪??(理쒖큹 ?ㅽ뻾 ?꾩?留?泥댄겕 + 濡쒓렇??泥댄겕 ?ы븿)
         btnScreenTransOverlay.setOnClickListener {
             val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val hasUsed = prefs.getBoolean(KEY_HAS_USED_SCREEN_TRANS, false)
 
-            // 1. 처음 사용하는 경우: 도움말 표시 후 리턴 (서비스 시작 안 함)
+            // 1. 泥섏쓬 ?ъ슜?섎뒗 寃쎌슦: ?꾩?留??쒖떆 ??由ы꽩 (?쒕퉬???쒖옉 ????
             if (!hasUsed) {
                 showGuideDialog()
                 prefs.edit().putBoolean(KEY_HAS_USED_SCREEN_TRANS, true).apply()
                 return@setOnClickListener
             }
 
-            // 2. 기존 사용자: 서비스 시작/종료 로직 수행
+            // 2. 湲곗〈 ?ъ슜?? ?쒕퉬???쒖옉/醫낅즺 濡쒖쭅 ?섑뻾
             if (isServiceRunning) {
                 stopOverlayService()
             } else {
-                // [추가] 로그인 체크
+                // [異붽?] 濡쒓렇??泥댄겕
                 if (auth.currentUser == null) {
-                    Toast.makeText(this, "로그인을 먼저 해주세요", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "濡쒓렇?몄쓣 癒쇱? ?댁＜?몄슂", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 if (!isNetworkAvailable() && currentModelTier != "STANDARD") {
-                    Toast.makeText(this, "인터넷 연결을 OK해주세요.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "?명꽣???곌껐??OK?댁＜?몄슂.", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 pendingAutoMode = false
@@ -543,7 +535,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // [추가] 자동 화면번역 버튼 리스너
+        // [異붽?] ?먮룞 ?붾㈃踰덉뿭 踰꾪듉 由ъ뒪??
         btnAutoScreenTrans.setOnClickListener {
             val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val hasUsed = prefs.getBoolean(KEY_HAS_USED_SCREEN_TRANS, false)
@@ -558,11 +550,11 @@ class MainActivity : AppCompatActivity() {
                 stopOverlayService()
             } else {
                 if (auth.currentUser == null) {
-                    Toast.makeText(this, "로그인을 먼저 해주세요", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "濡쒓렇?몄쓣 癒쇱? ?댁＜?몄슂", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 if (!isNetworkAvailable() && currentModelTier != "STANDARD") {
-                    Toast.makeText(this, "인터넷 연결을 OK해주세요.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "?명꽣???곌껐??OK?댁＜?몄슂.", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 pendingAutoMode = true
@@ -580,112 +572,121 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // [추가] 모델 선택 다이얼로그
-    private fun showModelSelectionDialog() {
-        val items = arrayOf(
-            "Standard translation (Free) - Offline",
-            "Advanced translation (1 Silver/page) - Flash-Lite",
-            "Pro translation (1 Gold/page) - Flash"
-        )
+    private fun showModelSelectionSheet() {
+        val sheet = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.dialog_model_selection_sheet, null)
+        sheet.setContentView(view)
 
         val silverBal = viewModel.userBalance.value
         val goldBal = viewModel.userGoldBalance.value
+        val balanceText = getString(R.string.model_sheet_balance_format, silverBal, goldBal)
+        view.findViewById<TextView>(R.id.tv_model_sheet_balance).text = balanceText
 
-        AlertDialog.Builder(this)
-            .setTitle("Select translation model")
-            .setSingleChoiceItems(items, getModelIndex(currentModelTier)) { dialog, which ->
-                val selectedTier = when (which) {
-                    0 -> "STANDARD"
-                    1 -> "ADVANCED"
-                    2 -> "PRO"
-                    else -> "ADVANCED"
-                }
+        val cardStandard = view.findViewById<MaterialCardView>(R.id.card_mode_standard)
+        val cardBalanced = view.findViewById<MaterialCardView>(R.id.card_mode_balanced)
+        val cardPrecise = view.findViewById<MaterialCardView>(R.id.card_mode_precise)
 
-                // [변경] PRO 모델 선택 시 항상 속도 경고 + "다시 보지 않기"
-                if (selectedTier == "PRO") {
-                    val warningPrefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    if (warningPrefs.getBoolean("skip_pro_screen_warning", false)) {
-                        // 경고 스킵 → 즉시 적용
-                        currentModelTier = selectedTier
-                        updateModelButtonUI()
-                        if (isServiceRunning) {
-                            val intent2 = Intent(this, ScreenTranslationService::class.java).apply {
-                                action = ScreenTranslationService.ACTION_UPDATE_MODEL
-                                putExtra("modelTier", currentModelTier)
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent2) else startService(intent2)
-                        }
-                        dialog.dismiss()
-                    } else {
-                        dialog.dismiss()
-                        val cb = CheckBox(this).apply { text = "다시 보지 않기"; setPadding(40, 20, 40, 0) }
-                        AlertDialog.Builder(this)
-                            .setTitle("경고")
-                            .setMessage("골드 모델은 정밀하지만 속도가 느려 화면 번역에는 권장하지 않습니다.")
-                            .setView(cb)
-                            .setPositiveButton("확인") { _, _ ->
-                                if (cb.isChecked) warningPrefs.edit().putBoolean("skip_pro_screen_warning", true).apply()
-                                currentModelTier = selectedTier
-                                updateModelButtonUI()
-                                if (isServiceRunning) {
-                                    val intent2 = Intent(this, ScreenTranslationService::class.java).apply {
-                                        action = ScreenTranslationService.ACTION_UPDATE_MODEL
-                                        putExtra("modelTier", currentModelTier)
-                                    }
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent2) else startService(intent2)
-                                }
-                            }
-                            .setNegativeButton("취소", null)
-                            .show()
+        fun decorate(card: MaterialCardView, isSelected: Boolean) {
+            card.strokeWidth = if (isSelected) 3 else 1
+            val colorRes = if (isSelected) R.color.brand_primary else R.color.border_subtle
+            card.strokeColor = ContextCompat.getColor(this, colorRes)
+        }
+
+        decorate(cardStandard, currentModelTier == "STANDARD")
+        decorate(cardBalanced, currentModelTier == "ADVANCED")
+        decorate(cardPrecise, currentModelTier == "PRO")
+
+        cardStandard.setOnClickListener {
+            applyModelTierChange("STANDARD")
+            sheet.dismiss()
+        }
+        cardBalanced.setOnClickListener {
+            applyModelTierChange("ADVANCED")
+            sheet.dismiss()
+        }
+        cardPrecise.setOnClickListener {
+            val warningPrefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            if (warningPrefs.getBoolean("skip_pro_screen_warning", false)) {
+                applyModelTierChange("PRO")
+                sheet.dismiss()
+            } else {
+                val (dontShowAgainView, cb) = createCenteredDontShowAgainView()
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(getString(R.string.model_precise_warning_title))
+                    .setMessage(getString(R.string.model_precise_warning_message))
+                    .setView(dontShowAgainView)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        if (cb.isChecked) warningPrefs.edit().putBoolean("skip_pro_screen_warning", true).apply()
+                        applyModelTierChange("PRO")
                     }
-                } else {
-                    currentModelTier = selectedTier
-                    updateModelButtonUI()
-
-                    // 화면 번역 서비스가 실행 중이면 실시간 변경 요청
-                    if (isServiceRunning) {
-                        val intent = Intent(this, ScreenTranslationService::class.java).apply {
-                            action = ScreenTranslationService.ACTION_UPDATE_MODEL
-                            putExtra("modelTier", currentModelTier)
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
-                    }
-
-                    dialog.dismiss()
-                }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+                sheet.dismiss()
             }
-            .setNeutralButton("잔액 OK") { _, _ ->
-                Toast.makeText(this, "Silver: $silverBal | Gold: $goldBal", Toast.LENGTH_LONG).show()
-            }
-            .show()
+        }
+
+        sheet.show()
     }
 
-    // [추가] 도움말 다이얼로그
+    private fun createCenteredDontShowAgainView(): Pair<LinearLayout, CheckBox> {
+        val checkBox = CheckBox(this).apply {
+            text = getString(R.string.dialog_never_show_again)
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, 20, 0, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            addView(checkBox)
+        }
+
+        return container to checkBox
+    }
+
+    // [異붽?] ?꾩?留??ㅼ씠?쇰줈洹?
     private fun showGuideDialog() {
         AlertDialog.Builder(this)
             .setTitle("How to use instant screen translation")
-            .setMessage("1. 돋보기 버튼을 눌러 번역을 시작하세요.\n2. 초록색 영역을 드래그하여 번역할 위치를 설정하세요.\n3. 영역을 고정하려면 '영역 고정' 체크박스를, 이동하려면 체크를 해제하세요.")
+            .setMessage("1. ?뗫낫湲?踰꾪듉???뚮윭 踰덉뿭???쒖옉?섏꽭??\n2. 珥덈줉???곸뿭???쒕옒洹명븯??踰덉뿭???꾩튂瑜??ㅼ젙?섏꽭??\n3. ?곸뿭??怨좎젙?섎젮硫?'?곸뿭 怨좎젙' 泥댄겕諛뺤뒪瑜? ?대룞?섎젮硫?泥댄겕瑜??댁젣?섏꽭??")
             .setPositiveButton("OK", null)
             .show()
     }
 
-    private fun getModelIndex(tier: String): Int {
-        return when(tier) {
-            "STANDARD" -> 0
-            "ADVANCED" -> 1
-            "PRO" -> 2
-            else -> 1
+    private fun updateModelButtonUI() {
+        val text = when(currentModelTier) {
+            "STANDARD" -> getString(R.string.main_mode_standard)
+            "ADVANCED" -> getString(R.string.main_mode_balanced)
+            "PRO" -> getString(R.string.main_mode_precise)
+            else -> getString(R.string.main_mode_balanced)
+        }
+        btnModelSelect.text = text
+    }
+
+    private fun applyModelTierChange(selectedTier: String) {
+        currentModelTier = selectedTier
+        updateModelButtonUI()
+
+        if (isServiceRunning) {
+            val intent = Intent(this, ScreenTranslationService::class.java).apply {
+                action = ScreenTranslationService.ACTION_UPDATE_MODEL
+                putExtra("modelTier", currentModelTier)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
         }
     }
 
-    private fun updateModelButtonUI() {
-        val text = when(currentModelTier) {
-            "STANDARD" -> "Model: Standard (Free)"
-            "ADVANCED" -> "Model: Advanced (Silver)"
-            "PRO" -> "Model: Pro (Gold)"
-            else -> "Model: Advanced (Silver)"
-        }
-        btnModelSelect.text = text
+    private fun currentSourceLang(): String {
+        val value = spinnerLang.text?.toString().orEmpty()
+        return if (value.isBlank()) sourceLanguages.first() else value
+    }
+
+    private fun currentTargetLang(): String {
+        val value = spinnerTargetLang.text?.toString().orEmpty()
+        return if (value.isBlank()) targetLanguages.first() else value
     }
 
     private fun showStoreDialog() {
@@ -694,13 +695,13 @@ class MainActivity : AppCompatActivity() {
         if (products.isEmpty()) {
             AlertDialog.Builder(this)
                 .setTitle("Store not ready")
-                .setMessage("상품 정보를 불러올 수 없습니다.\n\n(Google Play Console 설정을 OK해주세요.)")
+                .setMessage("?곹뭹 ?뺣낫瑜?遺덈윭?????놁뒿?덈떎.\n\n(Google Play Console ?ㅼ젙??OK?댁＜?몄슂.)")
                 .setPositiveButton("OK", null)
                 .show()
             return
         }
 
-        // [변경] 가격순 정렬 (실버 -> 골드 순서 유지를 위해 상품 ID 활용 추천하지만 일단 가격순)
+        // [蹂寃? 媛寃⑹닚 ?뺣젹 (?ㅻ쾭 -> 怨⑤뱶 ?쒖꽌 ?좎?瑜??꾪빐 ?곹뭹 ID ?쒖슜 異붿쿇?섏?留??쇰떒 媛寃⑹닚)
         val sortedProducts = products.sortedBy { it.oneTimePurchaseOfferDetails?.priceAmountMicros ?: 0 }
 
         val productNames = sortedProducts.map {
@@ -733,7 +734,7 @@ class MainActivity : AppCompatActivity() {
                             btnStopWork.isEnabled = true
                         }
                         is UiState.Success<*> -> {
-                            // 서비스에서 COMPLETE 방송을 보내므로 여기서 중복 처리 최소화
+                            // ?쒕퉬?ㅼ뿉??COMPLETE 諛⑹넚??蹂대궡誘濡??ш린??以묐났 泥섎━ 理쒖냼??
                             if(progressBar.visibility == View.VISIBLE) {
                                 updateStatus("Done: " + (state.data as? String ?: ""), false)
                             }
@@ -758,7 +759,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // [추가] 골드 잔액 관찰
+        // [異붽?] 怨⑤뱶 ?붿븸 愿李?
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.userGoldBalance.collect { balance ->
@@ -773,7 +774,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showErrorDialog(message: String, onRetry: (() -> Unit)?) {
         val builder = AlertDialog.Builder(this)
-            .setTitle("Error 발생")
+            .setTitle("Error 諛쒖깮")
             .setMessage(message)
             .setPositiveButton("OK", null)
         if (onRetry != null) {
@@ -826,9 +827,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startOverlayService(resultCode: Int, data: Intent) {
-        val selectedLang = spinnerLang.selectedItem.toString()
-        val selectedTargetLang = spinnerTargetLang.selectedItem.toString()
-        // [변경] pendingAutoMode에 따라 ACTION_START_AUTO / ACTION_START 분기
+        val selectedLang = currentSourceLang()
+        val selectedTargetLang = currentTargetLang()
+        // [蹂寃? pendingAutoMode???곕씪 ACTION_START_AUTO / ACTION_START 遺꾧린
         val serviceAction = if (pendingAutoMode) ScreenTranslationService.ACTION_START_AUTO else ScreenTranslationService.ACTION_START
         val intent = Intent(this, ScreenTranslationService::class.java).apply {
             action = serviceAction
@@ -847,15 +848,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateServiceButtonUI() {
         if (isServiceRunning) {
-            tvTransTitle.text = "번역 중지"
-            ivTransIcon.imageTintList = ColorStateList.valueOf(Color.RED)
-            tvAutoTransTitle.text = "번역 중지"
-            ivAutoTransIcon.imageTintList = ColorStateList.valueOf(Color.RED)
+            tvTransTitle.text = "踰덉뿭 以묒?"
+            ivTransIcon.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.status_error))
+            tvAutoTransTitle.text = "踰덉뿭 以묒?"
+            ivAutoTransIcon.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.status_error))
         } else {
             tvTransTitle.text = getString(R.string.action_screen_trans_instant)
             ivTransIcon.imageTintList = originalIconColor
             tvAutoTransTitle.text = getString(R.string.action_screen_trans_auto)
-            ivAutoTransIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#FF9800"))
+            ivAutoTransIcon.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.accent_amber))
         }
     }
 
@@ -864,6 +865,7 @@ class MainActivity : AppCompatActivity() {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         btnSelectOverlay.isEnabled = !isLoading && (auth.currentUser != null)
         spinnerLang.isEnabled = !isLoading
+        spinnerTargetLang.isEnabled = !isLoading
     }
 
     private fun updateUI(isLoggedIn: Boolean) {
@@ -871,12 +873,12 @@ class MainActivity : AppCompatActivity() {
             cardLogin.visibility = View.GONE
             cardSilverInfo.visibility = View.VISIBLE
             btnSelectOverlay.isEnabled = true
-            findViewById<View>(R.id.btnScreenTransHelp).visibility = View.VISIBLE // [추가]
+            findViewById<View>(R.id.btnScreenTransHelp).visibility = View.VISIBLE // [異붽?]
         } else {
             cardLogin.visibility = View.VISIBLE
             cardSilverInfo.visibility = View.GONE
             btnSelectOverlay.isEnabled = false
-            findViewById<View>(R.id.btnScreenTransHelp).visibility = View.GONE // [추가]
+            findViewById<View>(R.id.btnScreenTransHelp).visibility = View.GONE // [異붽?]
         }
     }
 
@@ -885,3 +887,4 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 }
+

@@ -1,4 +1,4 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -16,6 +16,9 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
@@ -35,40 +38,42 @@ class MassTranslationService : Service() {
         const val CHANNEL_ID = "MassTranslationChannel"
         const val NOTIFICATION_ID = 999
 
-        // UI 업데이트를 위한 브로드캐스트 액션
+        // UI ?낅뜲?댄듃瑜??꾪븳 釉뚮줈?쒖틦?ㅽ듃 ?≪뀡
         const val BROADCAST_PROGRESS = "com.tuna.proj_01.broadcast.PROGRESS"
         const val BROADCAST_COMPLETE = "com.tuna.proj_01.broadcast.COMPLETE"
         const val BROADCAST_ERROR = "com.tuna.proj_01.broadcast.ERROR"
 
-        // 서재 갱신용 액션
+        // ?쒖옱 媛깆떊???≪뀡
         const val ACTION_REFRESH_BOOKSHELF = "com.tuna.proj_01.ACTION_REFRESH_BOOKSHELF"
         const val EXTRA_FORCE_FINAL_SYNC = "FORCE_FINAL_SYNC"
 
-        // [변경] MAX_DETECTED_CHAR_COUNT 상수 제거 → getMaxDetectedCharCount()로 동적 적용
+        // [蹂寃? MAX_DETECTED_CHAR_COUNT ?곸닔 ?쒓굅 ??getMaxDetectedCharCount()濡??숈쟻 ?곸슜
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private val repository by lazy { BookRepository(applicationContext) }
+    private val auth by lazy { FirebaseAuth.getInstance() }
+    private val db by lazy { FirebaseFirestore.getInstance() }
 
-    // [Volatile] 여러 스레드에서 즉시 중단 상태를 인지하도록 설정
+    // [Volatile] ?щ윭 ?ㅻ젅?쒖뿉??利됱떆 以묐떒 ?곹깭瑜??몄??섎룄濡??ㅼ젙
     @Volatile
     private var isCancelled = false
 
     private var wakeLock: android.os.PowerManager.WakeLock? = null
 
-    // [변경] 타겟 언어에 따른 동적 글자 수 제한을 위한 인스턴스 변수
+    // [蹂寃? ?寃??몄뼱???곕Ⅸ ?숈쟻 湲?????쒗븳???꾪븳 ?몄뒪?댁뒪 蹂??
     private var targetLang: String = "Korean"
 
-    // [변경] 타겟 언어에 따른 동적 글자 수 제한 (영어: 425, 기본: 250)
+    // [蹂寃? ?寃??몄뼱???곕Ⅸ ?숈쟻 湲?????쒗븳 (?곸뼱: 425, 湲곕낯: 250)
     private fun getMaxDetectedCharCount(): Int {
         return if (targetLang == "English") 425 else 250
     }
 
     private val MAX_IMAGE_DIMENSION = 2560
 
-    // [설정] 5pages씩 묶어서 AI 요청 (변경: 3 → 5, 평균 토큰 소모 효율 향상)
+    // [?ㅼ젙] 5pages??臾띠뼱??AI ?붿껌 (蹂寃? 3 ??5, ?됯퇏 ?좏겙 ?뚮え ?⑥쑉 ?μ긽)
     private val PARALLEL_BATCH_SIZE = 5
-    // [설정] 한 턴에 동시에 실행할 배치 수 (5개) -> 즉 한 턴에 25pages(5x5) 처리
+    // [?ㅼ젙] ???댁뿉 ?숈떆???ㅽ뻾??諛곗튂 ??(5媛? -> 利????댁뿉 25pages(5x5) 泥섎━
     private val MAX_CONCURRENT_REQUESTS = 5
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -89,7 +94,7 @@ class MassTranslationService : Service() {
         if (action == ACTION_START) {
             if (TranslationWorkState.isNovelRunning(this) || TranslationWorkState.isMassRunning(this)) {
                 sendBroadcast(Intent(BROADCAST_ERROR).apply {
-                    putExtra("MESSAGE", getString(R.string.translation_running_block_message, TranslationWorkState.runningTaskName(this@MassTranslationService) ?: "다른 번역"))
+                    putExtra("MESSAGE", getString(R.string.translation_running_block_message, TranslationWorkState.runningTaskName(this@MassTranslationService) ?: "?ㅻⅨ 踰덉뿭"))
                 })
                 stopSelf()
                 return START_NOT_STICKY
@@ -97,8 +102,8 @@ class MassTranslationService : Service() {
 
             val lang = intent.getStringExtra("LANG") ?: "Japanese"
             val targetLang = intent.getStringExtra("TARGET_LANG") ?: "Korean"
-            this.targetLang = targetLang // [변경] 동적 글자 수 제한에 사용할 인스턴스 변수에 저장
-            val modelTier = intent.getStringExtra("MODEL_TIER") ?: "ADVANCED" // [추가]
+            this.targetLang = targetLang // [蹂寃? ?숈쟻 湲?????쒗븳???ъ슜???몄뒪?댁뒪 蹂?섏뿉 ???
+            val modelTier = intent.getStringExtra("MODEL_TIER") ?: "ADVANCED" // [異붽?]
             val uris = TranslationDataHolder.targetUris
             val bookDir = TranslationDataHolder.targetBookDir
 
@@ -138,12 +143,12 @@ class MassTranslationService : Service() {
     private fun stopTranslation() {
         isCancelled = true
         updateNotification("Finalizing...", 0, 0, false)
-        // 즉시 종료하지 않고, 진행 중인 배치가 저pages될 시간을 줌 (로직에서 처리)
+        // 利됱떆 醫낅즺?섏? ?딄퀬, 吏꾪뻾 以묒씤 諛곗튂媛 ?pages???쒓컙??以?(濡쒖쭅?먯꽌 泥섎━)
     }
 
     /**
-     * [턴 기반 처리 로직]
-     * STANDARD 모드(로컬 번역)와 ADVANCED/PRO(서버 번역)를 분기 처리
+     * [??湲곕컲 泥섎━ 濡쒖쭅]
+     * STANDARD 紐⑤뱶(濡쒖뺄 踰덉뿭)? ADVANCED/PRO(?쒕쾭 踰덉뿭)瑜?遺꾧린 泥섎━
      */
     private fun startTurnBasedTranslationProcess(uris: List<Uri>, bookDir: File, lang: String, targetLang: String, modelTier: String) {
         serviceScope.launch {
@@ -152,26 +157,26 @@ class MassTranslationService : Service() {
             val bookId = bookDir.name
             val skippedLargeTextPages = mutableListOf<Int>()
 
-            // 한 턴의 크기 = 25pages (변경: 9 → 25)
+            // ???댁쓽 ?ш린 = 25pages (蹂寃? 9 ??25)
             val turnSize = PARALLEL_BATCH_SIZE * MAX_CONCURRENT_REQUESTS
 
             try {
-                // [STANDARD 모드 전용] 언어팩 다운로드 체크
+                // [STANDARD 紐⑤뱶 ?꾩슜] ?몄뼱???ㅼ슫濡쒕뱶 泥댄겕
                 if (modelTier == "STANDARD") {
                     updateNotification("Checking offline translation model...", totalCount, 0, true)
                     prepareLocalModel(lang, targetLang)
                 }
 
-                // 전체 이미지를 25pages씩 나눔 (턴 생성)
+                // ?꾩껜 ?대?吏瑜?25pages???섎닎 (???앹꽦)
                 val turns = uris.chunked(turnSize)
 
                 for ((turnIndex, turnUris) in turns.withIndex()) {
-                    // [체크 포인트 1] 턴 시작 전 취소 확인
+                    // [泥댄겕 ?ъ씤??1] ???쒖옉 ??痍⑥냼 ?뺤씤
                     if (isCancelled) throw CancellationException()
 
                     val currentTurnStartCount = turnIndex * turnSize
 
-                    // --- [Step 1] OCR 수행 ---
+                    // --- [Step 1] OCR ?섑뻾 ---
                     updateNotification("Analyzing text positions... (${currentTurnStartCount}/$totalCount)", totalCount, currentTurnStartCount, true)
 
                     val ocrJobs = turnUris.mapIndexed { localIndex, uri ->
@@ -187,7 +192,7 @@ class MassTranslationService : Service() {
                     }
                     val pageDataList = ocrJobs.awaitAll()
 
-                    // --- [Step 2] 번역 (Local vs Server) ---
+                    // --- [Step 2] 踰덉뿭 (Local vs Server) ---
                     updateNotification("Translating and rendering images...", totalCount, globalSuccessCount, true)
 
                     val translationBatches = pageDataList.chunked(PARALLEL_BATCH_SIZE)
@@ -206,13 +211,13 @@ class MassTranslationService : Service() {
                                             blocks = allBlocks,
                                             targetLang = targetLang,
                                             imageCount = batch.size,
-                                            serviceType = "MANGA",
+                                            serviceType = "MANGA_BATCH",
                                             modelTier = modelTier
                                         )
                                     }
                                 }
 
-                                // [변경] 빈 블록 페이지 저장 방지 + 취소 체크 보강
+                                // [蹂寃? 鍮?釉붾줉 ?섏씠吏 ???諛⑹? + 痍⑥냼 泥댄겕 蹂닿컯
                                 var batchSuccessCount = 0
                                 batch.forEach { page ->
                                     if (isCancelled) throw CancellationException()
@@ -227,7 +232,7 @@ class MassTranslationService : Service() {
                         }
                     }
 
-                    // 배치들 완료 대기
+                    // 諛곗튂???꾨즺 ?湲?
                     val results = translationJobs.awaitAll()
                     globalSuccessCount += results.sum()
 
@@ -240,7 +245,7 @@ class MassTranslationService : Service() {
                     sendProgressBroadcast(globalSuccessCount, totalCount, msg)
                 }
 
-                // --- 전체 완료 ---
+                // --- ?꾩껜 ?꾨즺 ---
                 if (!isCancelled) {
                     updateNotification("Translation complete! ($totalCount pages)", totalCount, totalCount, false)
                     val skipMessage = if (skippedLargeTextPages.isNotEmpty()) {
@@ -248,7 +253,7 @@ class MassTranslationService : Service() {
                             .distinct()
                             .sorted()
                             .joinToString(",") { (it + 1).toString() }
-                        " 과도한 글자 감지로 번역 건너뜀: ${pageLabels}페이지"
+                        " 怨쇰룄??湲??媛먯?濡?踰덉뿭 嫄대꼫?: ${pageLabels}?섏씠吏"
                     } else {
                         ""
                     }
@@ -261,8 +266,9 @@ class MassTranslationService : Service() {
                 }
 
             } catch (e: CancellationException) {
-                Log.d("MassService", "작업 취소됨 (처리된 pages: $globalSuccessCount)")
+                Log.d("MassService", "?묒뾽 痍⑥냼??(泥섎━??pages: $globalSuccessCount)")
                 updateNotification("Translation stopped.", totalCount, globalSuccessCount, false)
+                recordMassSessionInterrupted(globalSuccessCount, totalCount, modelTier)
                 sendBroadcast(Intent(BROADCAST_COMPLETE).apply {
                     putExtra("MESSAGE", "Task stopped. (Done: $globalSuccessCount pages)")
                 })
@@ -286,7 +292,35 @@ class MassTranslationService : Service() {
         }
     }
 
-    // [New] ML Kit 번역 모델 준비
+    // [New] ML Kit 踰덉뿭 紐⑤뜽 以鍮?
+    private suspend fun recordMassSessionInterrupted(donePages: Int, totalPages: Int, modelTier: String) {
+        try {
+            val uid = auth.currentUser?.uid ?: return
+            val currency = when (modelTier.uppercase()) {
+                "PRO" -> "Gold"
+                "ADVANCED" -> "Silver"
+                else -> "Free"
+            }
+
+            db.collection("users")
+                .document(uid)
+                .collection("transactions")
+                .add(
+                    hashMapOf(
+                        "uid" to uid,
+                        "type" to "MASS_SESSION_INTERRUPTED",
+                        "amount" to 0,
+                        "currency" to currency,
+                        "description" to "Manga batch interrupted ($donePages/$totalPages pages) [$modelTier]",
+                        "timestamp" to FieldValue.serverTimestamp()
+                    )
+                )
+                .await()
+        } catch (e: Exception) {
+            Log.w("MassService", "Failed to record interrupted mass session", e)
+        }
+    }
+
     private suspend fun prepareLocalModel(sourceLang: String, targetLang: String) {
         val srcCode = mapLangCode(sourceLang)
         val tgtCode = mapLangCode(targetLang)
@@ -297,12 +331,12 @@ class MassTranslationService : Service() {
         val translator = Translation.getClient(options)
 
         val conditions = DownloadConditions.Builder().requireWifi().build()
-        // 모델 다운로드 대기 (이미 있으면 즉시 리턴)
+        // 紐⑤뜽 ?ㅼ슫濡쒕뱶 ?湲?(?대? ?덉쑝硫?利됱떆 由ы꽩)
         translator.downloadModelIfNeeded(conditions).await()
         translator.close()
     }
 
-    // [New] ML Kit 로컬 번역 실행
+    // [New] ML Kit 濡쒖뺄 踰덉뿭 ?ㅽ뻾
     private suspend fun performLocalTranslation(blocks: List<MangaBlock>, sourceLang: String, targetLang: String) {
         val srcCode = mapLangCode(sourceLang)
         val tgtCode = mapLangCode(targetLang)
@@ -313,8 +347,8 @@ class MassTranslationService : Service() {
         val translator = Translation.getClient(options)
 
         try {
-            // 배치 처리 대신 개별 처리 (ML Kit는 로컬이라 빠름)
-            // Deferred로 병렬 실행 가능하지만 리소스 관리 차원에서 순차 실행 권pages
+            // 諛곗튂 泥섎━ ???媛쒕퀎 泥섎━ (ML Kit??濡쒖뺄?대씪 鍮좊쫫)
+            // Deferred濡?蹂묐젹 ?ㅽ뻾 媛?ν븯吏留?由ъ냼??愿由?李⑥썝?먯꽌 ?쒖감 ?ㅽ뻾 沅똯ages
             blocks.forEach { block ->
                 try {
                     val result = translator.translate(block.originalText).await()
@@ -390,14 +424,14 @@ class MassTranslationService : Service() {
                 blocksRaw
             }
 
-            // [변경] 동적 글자 수 제한 적용 (영어: 350자, 기본: 250자)
+            // [蹂寃? ?숈쟻 湲?????쒗븳 ?곸슜 (?곸뼱: 350?? 湲곕낯: 250??
             val detectedCharCount = blocks.sumOf { it.originalText.length }
             val maxCharCount = getMaxDetectedCharCount()
             if (detectedCharCount >= maxCharCount) {
                 synchronized(skippedLargeTextPages) {
                     skippedLargeTextPages.add(index)
                 }
-                Log.w("MassService", "페이지 ${index + 1} 글자 수 초과로 번역 건너뜀 (감지: $detectedCharCount, 제한: $maxCharCount)")
+                Log.w("MassService", "?섏씠吏 ${index + 1} 湲????珥덇낵濡?踰덉뿭 嫄대꼫? (媛먯?: $detectedCharCount, ?쒗븳: $maxCharCount)")
                 if (ocrBitmap != bitmap && !ocrBitmap.isRecycled) ocrBitmap.recycle()
                 bitmap.recycle()
                 recognizer.close()
@@ -427,7 +461,7 @@ class MassTranslationService : Service() {
     }
 
     private suspend fun saveTranslatedImage(page: PageData, bookDir: File, sourceLang: String) {
-        if (isCancelled) return  // [추가] 즉시 반환
+        if (isCancelled) return  // [異붽?] 利됱떆 諛섑솚
         try {
             val fileName = String.format(Locale.US, "%03d.jpg", page.pageIndex + 1)
             val file = File(bookDir, fileName)
@@ -524,3 +558,4 @@ class MassTranslationService : Service() {
 
     data class PageData(val uri: Uri, val blocks: List<MangaBlock>, val pageIndex: Int)
 }
+

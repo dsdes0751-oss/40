@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 프리미엄 다크 토큰 -->
+    <color name="brand_primary">#5E84FF</color>
+    <color name="brand_primary_pressed">#4969D8</color>
+    <color name="brand_on_primary">#F7F9FF</color>
+    <color name="brand_secondary">#8EA6D8</color>
+    <color name="accent_amber">#E9B35D</color>
+
+    <color name="bg_app">#0C1018</color>
+    <color name="bg_surface">#141B28</color>
+    <color name="bg_surface_alt">#1A2333</color>
+    <color name="bg_surface_elevated">#202A3D</color>
+    <color name="bg_viewer">#090D14</color>
+    <color name="bg_scrim">#A6000000</color>
+    <color name="bg_chip">#24324A</color>
+    <color name="nav_active_bg">#263B66</color>
+    <color name="nav_inactive_bg">#1A2333</color>
+
+    <color name="text_primary">#EAF0FF</color>
+    <color name="text_secondary">#B4C0D8</color>
+    <color name="text_muted">#8C9AB4</color>
+    <color name="text_inverse">#F7F9FF</color>
+    <color name="text_on_amber">#221400</color>
+
+    <color name="border_subtle">#2A3851</color>
+    <color name="border_strong">#3E5070</color>
+    <color name="status_success">#5ED69C</color>
+    <color name="status_error">#FF808D</color>
+    <color name="status_warning">#E9B35D</color>
+    <color name="status_info">#74B7FF</color>
+    <color name="status_new_badge_bg">#CC0A1020</color>
+    <color name="status_new_badge_text">#74B7FF</color>
+
+    <color name="tier_standard">#7F8CA6</color>
+    <color name="tier_advanced">#B8C4D9</color>
+    <color name="tier_pro">#E9CC82</color>
+
+    <!-- 레거시 호환 alias -->
+    <color name="primary_blue">@color/brand_primary</color>
+    <color name="primary_blue_pressed">@color/brand_primary_pressed</color>
+    <color name="background_light">@color/bg_app</color>
+    <color name="background_white">@color/bg_surface</color>
+    <color name="background_viewer">@color/bg_viewer</color>
+    <color name="background_overlay">@color/bg_scrim</color>
+    <color name="text_white">@color/text_inverse</color>
+    <color name="divider">@color/border_subtle</color>
+    <color name="error_red">@color/status_error</color>
+    <color name="card_shadow">#40000000</color>
+</resources>

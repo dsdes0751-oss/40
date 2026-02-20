@@ -1,10 +1,10 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -14,16 +14,25 @@ import java.util.Locale
 
 data class SilverHistory(
     val id: String,
-    val amount: Long,
-    val description: String,
-    val timestamp: Long
+    val title: String,
+    val subtitle: String,
+    val timestamp: Long,
+    val amountText: String,
+    val amountKind: AmountKind
 )
+
+enum class AmountKind {
+    POSITIVE,
+    NEGATIVE,
+    NEUTRAL
+}
 
 class SilverHistoryAdapter : ListAdapter<SilverHistory, SilverHistoryAdapter.ViewHolder>(DiffCallback) {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvTitle: TextView = view.findViewById(R.id.tv_history_title)
-        val tvDate: TextView = view.findViewById(R.id.tv_history_date)
+        val tvSubtitle: TextView = view.findViewById(R.id.tv_history_date)
+        val tvMeta: TextView = view.findViewById(R.id.tv_history_meta)
         val tvAmount: TextView = view.findViewById(R.id.tv_history_amount)
     }
 
@@ -35,18 +44,32 @@ class SilverHistoryAdapter : ListAdapter<SilverHistory, SilverHistoryAdapter.Vie
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = getItem(position)
-        holder.tvTitle.text = item.description
+        holder.tvTitle.text = item.title
+        holder.tvSubtitle.text = item.subtitle
 
         val date = Date(item.timestamp)
         val format = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault())
-        holder.tvDate.text = format.format(date)
+        holder.tvMeta.text = format.format(date)
 
-        if (item.amount > 0) {
-            holder.tvAmount.text = "+${item.amount}"
-            holder.tvAmount.setTextColor(Color.parseColor("#4CAF50")) // Green
-        } else {
-            holder.tvAmount.text = "${item.amount}"
-            holder.tvAmount.setTextColor(Color.parseColor("#FF5252")) // Red
+        holder.tvAmount.text = item.amountText
+        when (item.amountKind) {
+            AmountKind.POSITIVE -> {
+                holder.tvAmount.setTextColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.status_success)
+                )
+            }
+
+            AmountKind.NEGATIVE -> {
+                holder.tvAmount.setTextColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.status_error)
+                )
+            }
+
+            AmountKind.NEUTRAL -> {
+                holder.tvAmount.setTextColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.text_secondary)
+                )
+            }
         }
     }
 

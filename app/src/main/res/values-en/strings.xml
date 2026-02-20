@@ -1,121 +1,39 @@
-<resources>
-  <string name="app_name">Manga Translator</string>
-  <string name="default_web_client_id">691923720143-m2dbnoal2cbc8vn6piu7c7gsi55p7lid.apps.googleusercontent.com</string>
+﻿<resources>
+    <string name="app_name">Manga Translator</string>
+    <string name="nav_main">Main</string>
+    <string name="nav_library">Library</string>
 
-  <string-array name="app_language_options">
-    <item>Korean</item>
-    <item>日本語</item>
-    <item>中文</item>
-    <item>English</item>
-  </string-array>
+    <string name="source_language_label">Source language</string>
+    <string name="target_language_label">Target language</string>
+    <string name="novel_translation_model_label">Translation mode</string>
+    <string name="novel_translation_target_lang_label">Target language</string>
 
-  <string-array name="theme_options">
-    <item>Follow system</item>
-    <item>Light mode</item>
-    <item>Dark mode</item>
-  </string-array>
+    <string name="main_mode_standard">Translation mode: Fast</string>
+    <string name="main_mode_balanced">Translation mode: Balanced</string>
+    <string name="main_mode_precise">Translation mode: Precise</string>
 
-  <string name="common_back">Back</string>
-  <string name="common_loading">Loading...</string>
-  <string name="common_copy">Copy</string>
-  <string name="common_logout">Log out</string>
-  <string name="common_cancel">Cancel</string>
-  <string name="common_unknown">Unknown</string>
-  <string name="common_question_mark">\?</string>
+    <string name="model_sheet_title">Choose translation mode</string>
+    <string name="model_sheet_balance_format">Balance  Silver %1$d · Gold %2$d</string>
+    <string name="model_mode_standard">Fast</string>
+    <string name="model_mode_standard_desc">Fastest processing with standard quality</string>
+    <string name="model_mode_balanced">Balanced</string>
+    <string name="model_mode_balanced_desc">Balanced speed and quality</string>
+    <string name="model_recommended_badge">Recommended</string>
+    <string name="model_mode_precise">Precise</string>
+    <string name="model_mode_precise_desc">Higher quality with slower speed</string>
+    <string name="model_precise_warning_title">Precise mode notice</string>
+    <string name="model_precise_warning_message">Precise mode can improve quality but may be slower for screen translation.</string>
+    <string name="model_balanced_notice_title">Mode notice</string>
+    <string name="model_balanced_notice_message">For large image batches, Precise mode may produce more natural results.</string>
+    <string name="dialog_never_show_again">Do not show again</string>
 
-    <string name="settings_title">My Info &amp; Settings</string>
-  <string name="settings_my_info">My info</string>
-  <string name="settings_uid_label">UID: </string>
-  <string name="settings_transaction_history">Currency history (Silver/Gold)</string>
-  <string name="settings_history_empty">No history yet.</string>
-  <string name="settings_data_management">Data management</string>
-  <string name="settings_export_books">Export all books to Downloads</string>
-  <string name="settings_other">Other settings</string>
-  <string name="settings_language">Language</string>
-  <string name="settings_theme">Theme</string>
-  <string name="settings_send_feedback">Send feedback</string>
-  <string name="settings_privacy_policy">Privacy policy</string>
-  <string name="settings_version">Version</string>
-  <string name="settings_version_default">v1.0.0</string>
-  <string name="settings_storage_permission_required">Storage permission is required.</string>
-  <string name="settings_no_email">No email</string>
-  <string name="settings_login_required">Login required</string>
-  <string name="settings_silver_format">Silver: %1$d</string>
-  <string name="settings_gold_format">Gold: %1$d</string>
-  <string name="settings_history_default">History</string>
-  <string name="settings_history_load_failed">History .</string>
-  <string name="settings_exporting_title">Exporting</string>
-  <string name="settings_exporting_message">Exporting books to Downloads...&#10;Please wait.</string>
-  <string name="settings_no_books_to_export">No books to export.</string>
-  <string name="settings_export_success_format">Exported %1$d books to Downloads.</string>
-  <string name="settings_no_images_to_export">No images to export.</string>
-  <string name="settings_logout_confirm_message"> Log out ?</string>
-  <string name="settings_logged_out">Log out .</string>
-  <string name="settings_feedback_subject">[Manga Translator] </string>
-  <string name="settings_no_email_app">No email app found.</string>
-  <string name="settings_uid_copied">UID Copy.</string>
-  <string name="settings_guest_email_placeholder">guest@example.com</string>
-  <string name="settings_silver_default">Silver: 0</string>
-  <string name="settings_gold_default">Gold: 0</string>
+    <string name="action_screen_trans_instant">Instant screen translation</string>
+    <string name="action_screen_trans_auto">Auto screen translation</string>
 
-  <string name="greeting_format">Welcome, %s</string>
-  <string name="greeting_guest">Welcome, guest</string>
-  <string name="balance_format">%d Silver</string>
-  <string name="action_screen_trans_title">Screen translation</string>
-  <string name="action_screen_trans_desc">Translate your current screen\nin real time</string>
-  <string name="action_select_image_title">Import image</string>
-  <string name="action_select_image_desc">Select manga from gallery\nand start translating</string>
-  <string name="library_title">My Library</string>
-  <string name="btn_read">Read</string>
-  <string name="btn_login">Log in</string>
-
-  <string name="main_settings">Settings</string>
-  <string name="main_silver_default">0 S</string>
-  <string name="main_gold_default">0 G</string>
-  <string name="main_arrow">→</string>
-  <string name="main_model_advanced">Model: Advanced (Silver)</string>
-  <string name="main_status_idle">Idle</string>
-  <string name="main_stop">Stop job</string>
-
-  <string name="help_title">How to use screen translation</string>
-  <string name="help_step1_title">1. Grant permissions</string>
-  <string name="help_step1_desc">Screen translation requires \'draw over other apps\' and \'screen capture\' permissions. Allow them in the popup shown at first launch.</string>
-  <string name="help_step2_title">2. Launch overlay</string>
-  <string name="help_step2_desc">Tap \'Screen Translation Mode\' on the home screen to show a small floating translate button.</string>
-  <string name="help_step3_title">3. Select area and translate</string>
-  <string name="help_step3_desc">Move to another app (webtoon/manga viewer), tap the floating button, then drag the area you want to translate.</string>
-  <string name="help_step4_title">4. Tips</string>
-  <string name="help_step4_desc">- Select text areas precisely for better quality.\n- Advanced models (Silver/Gold) provide more natural output.</string>
-  <string name="help_confirm">Got it</string>
-
-  <string name="viewer_loading">Translating...</string>
-  <string name="viewer_error">Could not load image</string>
-  <string name="viewer_book_title_placeholder">Book Title</string>
-  <string name="viewer_page_indicator_placeholder">1 / 20</string>
-  <string name="viewer_page_content_description">Manga page</string>
-
-  <string name="overlay_pin_area">Pin area</string>
-  <string name="overlay_start_translation">Start translation</string>
-
-  <string name="viewer_settings_screen"> Settings</string>
-  <string name="viewer_settings_webtoon_mode">Webtoon mode (vertical scroll)</string>
-  <string name="viewer_settings_show_original">Show original image</string>
-  <string name="viewer_settings_controls"> Settings</string>
-  <string name="viewer_settings_volume_keys">Use volume keys for paging</string>
-  <string name="viewer_settings_cover"> Settings</string>
-  <string name="viewer_settings_hide_this_cover">Hide this book cover</string>
-  <string name="viewer_settings_hide_all_covers">Hide all covers (library)</string>
-  <string name="viewer_settings_delete_current">Delete current book</string>
-  <string name="viewer_settings_delete_all">Delete all books (reset)</string>
-
-  <string name="history_item_content">History </string>
-  <string name="history_item_date">2024.01.01 12:00</string>
-  <string name="history_item_amount">+5</string>
-
-  <string name="book_new_badge">New</string>
-  <string name="bookmark">Bookmark</string>
-  <string name="book_title_placeholder">Book Title</string>
-  <string name="book_pages_placeholder">0 Pages</string>
-  <string name="nav_main">Main</string>
-  <string name="nav_library">Library</string>
+    <string name="vn_source_lang_label">Source language</string>
+    <string name="vn_target_lang_label">Target language</string>
+    <string name="vn_lang_korean">Korean</string>
+    <string name="vn_lang_english">English</string>
+    <string name="vn_lang_japanese">Japanese</string>
+    <string name="vn_lang_chinese">Chinese</string>
 </resources>

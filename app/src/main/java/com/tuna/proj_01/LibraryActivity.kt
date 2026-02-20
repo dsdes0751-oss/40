@@ -3,7 +3,9 @@ package com.tuna.proj_01
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -22,6 +24,7 @@ class LibraryActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     private lateinit var rvBookshelf: RecyclerView
+    private lateinit var tvLibraryEmpty: TextView
     private lateinit var bookAdapter: BookAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,6 +32,7 @@ class LibraryActivity : AppCompatActivity() {
         setContentView(R.layout.activity_library)
 
         rvBookshelf = findViewById(R.id.rv_bookshelf)
+        tvLibraryEmpty = findViewById(R.id.tv_library_empty)
         rvBookshelf.layoutManager = GridLayoutManager(this, 3)
 
         bookAdapter = BookAdapter(
@@ -67,6 +71,9 @@ class LibraryActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.bookList.collect { books ->
                     bookAdapter.submitList(books)
+                    val isEmpty = books.isEmpty()
+                    tvLibraryEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                    rvBookshelf.visibility = if (isEmpty) View.INVISIBLE else View.VISIBLE
                 }
             }
         }

@@ -1,4 +1,4 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -16,11 +16,15 @@ import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.GestureDetector
@@ -65,7 +69,7 @@ class ScreenTranslationService : Service() {
         const val ACTION_START_AUTO = "com.tuna.proj_01.ACTION_START_AUTO"
         const val ACTION_STOP = "com.tuna.proj_01.ACTION_STOP"
         const val ACTION_UPDATE_LANG = "com.tuna.proj_01.UPDATE_LANG"
-        const val ACTION_UPDATE_MODEL = "com.tuna.proj_01.UPDATE_MODEL" // [추가] 모델 변경 액션
+        const val ACTION_UPDATE_MODEL = "com.tuna.proj_01.UPDATE_MODEL"
         const val ACTION_UPDATE_TARGET_LANG = "com.tuna.proj_01.UPDATE_TARGET_LANG"
         const val ACTION_SERVICE_STOPPED = "com.tuna.proj_01.SERVICE_STOPPED"
         const val EXTRA_TRANSLATION_MODE = "extra_translation_mode"
@@ -74,24 +78,21 @@ class ScreenTranslationService : Service() {
         const val EXTRA_VN_SOURCE_LANG = "extra_vn_source_lang"
         private const val TAG = "ScreenTranslation"
         private const val VN_INPUT_CHAR_LIMIT = 90
-        private const val DEFAULT_CHANGE_THRESHOLD = 24
-        private const val VN_CHANGE_THRESHOLD = 16
-        private const val DEFAULT_POLL_INTERVAL_MS = 500L
-        private const val VN_POLL_INTERVAL_MS = 300L
-        private const val DEFAULT_STABLE_DELAY_MS = 700L
-        private const val VN_STABLE_DELAY_MS = 600L
-        // [변경] MAX_DETECTED_CHAR_COUNT 상수 제거, getMaxDetectedCharCount()로 동적 적용
+        private const val DEFAULT_ANALYZE_HZ = 8L
+        private const val VN_ANALYZE_HZ = 12L
+        private const val DEFAULT_STABLE_FRAMES = 4
+        private const val VN_STABLE_FRAMES = 3
+        private const val DEFAULT_HASH_DISTANCE_THRESHOLD = 8
+        private const val VN_HASH_DISTANCE_THRESHOLD = 6
+        private const val MONITOR_DIVISOR = 3
+        private const val MONITOR_MAX_SIDE = 480
+        // [癰궰野? MAX_DETECTED_CHAR_COUNT ?怨몃땾 ??볤탢, getMaxDetectedCharCount()嚥???덉읅 ?怨몄뒠
     }
 
     private enum class TranslationMode {
         DEFAULT,
         VN_FAST
     }
-
-    private data class AutoRegionSignature(
-        val avgLuma: Int,
-        val edgeLuma: Int
-    )
 
     private lateinit var windowManager: WindowManager
     private lateinit var floatingButton: ImageView
@@ -131,12 +132,12 @@ class ScreenTranslationService : Service() {
     private val translationQueue = mutableListOf<MangaBlock>()
     private var sourceLang: String = "Japanese"
     private var targetLang: String = "Korean"
-    private var currentModelTier: String = "ADVANCED" // [추가] 기본값 ADVANCED
+    private var currentModelTier: String = "ADVANCED" // [?곕떽?] 疫꿸퀡??첎?ADVANCED
     private var translationMode: TranslationMode = TranslationMode.DEFAULT
     private var vnTargetLangCode: String = "KO"
     private var vnSourceLangCode: String? = null
 
-    // [변경] 대상 언어별 최대 글자 수 제한 (영어: 425, 기본: 250)
+    // [癰궰野? ?????紐꾨선癰?筌ㅼ뮆? 疫꼲??????쀫립 (?怨몃선: 425, 疫꿸퀡?? 250)
     private fun getMaxDetectedCharCount(): Int {
         return if (targetLang == "English") 425 else 250
     }
@@ -148,16 +149,16 @@ class ScreenTranslationService : Service() {
     private var isRunning = false
     private var isCaptureInProgress = false
     private var isAutoTranslateEnabled = false
-    private var autoTranslateJob: Job? = null
-    private var isAutoMode = false  // [추가] 자동 화면번역 모드 여부
-    private var autoNoiseEma = 0.0
-    private var autoDynamicThreshold = DEFAULT_CHANGE_THRESHOLD
+    private var autoTranslateMonitor: AutoTranslateMonitor? = null
+    private var isAutoTriggerPending = false
+    private var isAutoMode = false  // [?곕떽?] ?癒?짗 ?遺얇늺甕곕뜆肉?筌뤴뫀諭????
 
     private var lastClickTime: Long = 0
     private val doubleClickDelay = 300L
     private val TOUCH_SLOP = 30f
     private var isLongPressJob: Job? = null
     private var singleClickJob: Job? = null
+    private val debugLogAtMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     private lateinit var gestureDetector: GestureDetector
 
@@ -181,7 +182,7 @@ class ScreenTranslationService : Service() {
         createNotificationChannel()
     }
 
-    // 화면 해상도 정보를 최신값으로 갱신하는 함수
+    // ?遺얇늺 ??곴맒???類ｋ궖??筌ㅼ뮇?듿첎誘れ몵嚥?揶쏄퉮???롫뮉 ??λ땾
     private fun updateScreenMetrics() {
         val metrics = DisplayMetrics()
         windowManager.defaultDisplay.getRealMetrics(metrics)
@@ -191,6 +192,15 @@ class ScreenTranslationService : Service() {
 
         captureEditorOverlayView?.setScreenSize(screenWidth, screenHeight)
         Log.d(TAG, "Screen metrics updated: ${screenWidth}x${screenHeight}")
+    }
+
+    private fun logDebugThrottled(key: String, intervalMs: Long = 2000L, message: String) {
+        val now = SystemClock.elapsedRealtime()
+        val prev = debugLogAtMs[key]
+        if (prev == null || now - prev >= intervalMs) {
+            debugLogAtMs[key] = now
+            Log.d(TAG, message)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -207,21 +217,21 @@ class ScreenTranslationService : Service() {
                 val newLang = intent.getStringExtra("sourceLang")
                 if (newLang != null) {
                     sourceLang = newLang
-                    showCustomToast("번역 언어 변경: $sourceLang")
+                    showCustomToast("踰덉뿭 ?몄뼱 蹂寃? $sourceLang")
                 }
                 return START_NOT_STICKY
             }
-            ACTION_UPDATE_MODEL -> { // [추가] 모델 변경 처리
+            ACTION_UPDATE_MODEL -> {
                 val newModel = intent.getStringExtra("modelTier")
                 if (newModel != null) {
                     currentModelTier = newModel
                     val modelName = when(currentModelTier) {
-                        "STANDARD" -> "일반 번역 (무료)"
-                        "ADVANCED" -> "고급 번역 (실버)"
-                        "PRO" -> "프로 번역 (골드)"
-                        else -> "알 수 없음"
+                        "STANDARD" -> "?쇰컲 踰덉뿭 (臾대즺)"
+                        "ADVANCED" -> "怨좉툒 踰덉뿭 (?ㅻ쾭)"
+                        "PRO" -> "?꾨줈 踰덉뿭 (怨⑤뱶)"
+                        else -> "?????놁쓬"
                     }
-                    showCustomToast("모델 변경: $modelName")
+                    showCustomToast("紐⑤뜽 蹂寃? $modelName")
                 }
                 return START_NOT_STICKY
             }
@@ -229,7 +239,7 @@ class ScreenTranslationService : Service() {
                 val newTargetLang = intent.getStringExtra("targetLang")
                 if (newTargetLang != null) {
                     targetLang = newTargetLang
-                    showCustomToast("번역 대상 언어 변경: $targetLang")
+                    showCustomToast("踰덉뿭 ????몄뼱 蹂寃? $targetLang")
                 }
                 return START_NOT_STICKY
             }
@@ -245,7 +255,7 @@ class ScreenTranslationService : Service() {
             if (newLang != null) sourceLang = newLang
             val initialTargetLang = intent.getStringExtra("targetLang")
             if (initialTargetLang != null) targetLang = initialTargetLang
-            // 초기 실행 시 모델 설정값 수신
+            // ?λ뜃由???쎈뻬 ??筌뤴뫀????쇱젟揶???뤿뻿
             val initialModel = intent.getStringExtra("modelTier")
             if (initialModel != null) currentModelTier = initialModel
             translationMode = if (intent.getStringExtra(EXTRA_TRANSLATION_MODE) == MODE_VN_FAST) {
@@ -258,7 +268,7 @@ class ScreenTranslationService : Service() {
             val vnSource = intent.getStringExtra(EXTRA_VN_SOURCE_LANG)
             vnSourceLangCode = vnSource
 
-            // [추가] 자동 화면번역 모드 설정
+            // [?곕떽?] ?癒?짗 ?遺얇늺甕곕뜆肉?筌뤴뫀諭???쇱젟
             isAutoMode = action == ACTION_START_AUTO
 
             if (!isRunning) {
@@ -299,7 +309,7 @@ class ScreenTranslationService : Service() {
             hideLoadingOverlay()
             removeCaptureAreaOverlay(keepFloatingButton = false)
 
-            showCustomToast("화면 번역 서비스가 종료되었습니다.")
+            showCustomToast("?붾㈃ 踰덉뿭 ?쒕퉬?ㅺ? 醫낅즺?섏뿀?듬땲??")
 
             serviceScope.launch {
                 delay(2000)
@@ -372,7 +382,7 @@ class ScreenTranslationService : Service() {
             }
 
             loadingTextView = TextView(this).apply {
-                text = "텍스트 분석 중..."
+                text = "?띿뒪??遺꾩꽍 以?.."
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 gravity = Gravity.CENTER
@@ -422,20 +432,19 @@ class ScreenTranslationService : Service() {
     }
 
     private fun showOverlayView(bitmap: Bitmap) {
-        // [수정] 오프셋 문제 해결: FLAG_LAYOUT_NO_LIMITS 재적용 (좌표 통일)
+        // [??륁젟] ??쎈늄???얜챷????욧퍙: FLAG_LAYOUT_NO_LIMITS ?????(?ル슦紐????뵬)
         val params = WindowManager.LayoutParams(
             bitmap.width,
             bitmap.height,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or // 재추가: 화면 전체를 좌표 기준으로 사용
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or // ???쎾첎?: ?遺얇늺 ?袁⑷퍥???ル슦紐?疫꿸퀣???곗쨮 ????                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                     WindowManager.LayoutParams.FLAG_SECURE,
             PixelFormat.TRANSLUCENT
         )
 
-        // [중요] 컷아웃 영역까지 오버레이를 표시하도록 설정
+        // [餓λ쵐?? ?뚮９釉???怨몃열繹먮슣? ??살쒔??됱뵠????뽯뻻??롫즲嚥???쇱젟
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
@@ -529,7 +538,7 @@ class ScreenTranslationService : Service() {
             val params = WindowManager.LayoutParams(
                 rect.width(), rect.height(),
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
-                // [수정] NO_LIMITS 플래그 적용
+                // [??륁젟] NO_LIMITS ???삋域??怨몄뒠
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -594,7 +603,7 @@ class ScreenTranslationService : Service() {
             val btnConfirm = controlsView.findViewById<Button>(R.id.btn_confirm_area)
             val cbFix = controlsView.findViewById<CheckBox>(R.id.cb_fix_area)
 
-            btnConfirm.text = "영역 설정 완료"
+            btnConfirm.text = "?곸뿭 ?ㅼ젙 ?꾨즺"
             val prefs = getSharedPreferences("screen_trans_prefs", Context.MODE_PRIVATE)
             cbFix.isChecked = prefs.getBoolean("is_fixed_mode", false)
 
@@ -655,10 +664,10 @@ class ScreenTranslationService : Service() {
                         startCaptureWithCheck()
                     } else {
                         floatingButton.visibility = View.VISIBLE
-                        showCustomToast("영역이 고정되었습니다. 돋보기를 눌러 번역하세요.")
+                        showCustomToast("?곸뿭??怨좎젙?섏뿀?듬땲?? ?뗫낫湲곕? ?뚮윭 踰덉뿭?섏꽭??")
                     }
                 } else {
-                    showCustomToast("영역을 더 크게 지정해주세요.")
+                    showCustomToast("?곸뿭?????ш쾶 吏?뺥빐二쇱꽭??")
                 }
             }
 
@@ -670,7 +679,7 @@ class ScreenTranslationService : Service() {
         } catch (e: Exception) {
             e.printStackTrace()
             removeCaptureAreaOverlay(keepFloatingButton = true)
-            showCustomToast("오버레이 실행 오류")
+            showCustomToast("?ㅻ쾭?덉씠 ?ㅽ뻾 ?ㅻ쪟")
         }
     }
 
@@ -812,7 +821,7 @@ class ScreenTranslationService : Service() {
 
     private fun performSingleClickAction() {
         if (resultCode == 0 || resultData == null) {
-            showCustomToast("권한 오류: 앱을 다시 실행해주세요")
+            showCustomToast("沅뚰븳 ?ㅻ쪟: ?깆쓣 ?ㅼ떆 ?ㅽ뻾?댁＜?몄슂")
             return
         }
         loadCaptureSettings()
@@ -820,7 +829,7 @@ class ScreenTranslationService : Service() {
         if (targetCaptureRect != null) {
             showIndicatorOverlay(targetCaptureRect!!)
             if (isAutoMode) {
-                // [변경] 자동 화면번역 모드: 자동 번역 실행
+                // [癰궰野? ?癒?짗 ?遺얇늺甕곕뜆肉?筌뤴뫀諭? ?癒?짗 甕곕뜆肉???쎈뻬
                 toggleAutoTranslate()
             } else {
                 floatingButton.visibility = View.GONE
@@ -842,179 +851,333 @@ class ScreenTranslationService : Service() {
         }
     }
 
-    private fun startAutoTranslateMonitoring() {
+    private fun startAutoTranslateMonitoring(
+        triggerInitialCapture: Boolean = true,
+        showToast: Boolean = true
+    ) {
         val rect = targetCaptureRect
         if (rect == null) {
-            showCustomToast("먼저 번역 영역을 지정해주세요.")
+            Log.w(TAG, "Auto monitor start blocked: targetCaptureRect is null")
+            showCustomToast("癒쇱? 踰덉뿭 ?곸뿭??吏?뺥빐二쇱꽭??")
             return
         }
-        if (autoTranslateJob?.isActive == true) return
 
+        Log.d(TAG, "Auto monitor start requested: rect=$rect, triggerInitialCapture=$triggerInitialCapture, mode=$translationMode")
+        autoTranslateMonitor?.stop()
         isAutoTranslateEnabled = true
-        resetAutoChangeLearning()
-        showCustomToast("자동번역 시작: 영역 변화 감지 중")
-        val pollInterval = if (translationMode == TranslationMode.VN_FAST) VN_POLL_INTERVAL_MS else DEFAULT_POLL_INTERVAL_MS
-        val stableDelay = if (translationMode == TranslationMode.VN_FAST) VN_STABLE_DELAY_MS else DEFAULT_STABLE_DELAY_MS
+        isAutoTriggerPending = false
 
-        autoTranslateJob = serviceScope.launch {
-            var lastSignature = captureSignatureForAuto(rect)
-            if (lastSignature != null && !isCaptureInProgress) {
-                Log.d(TAG, "Auto mode: initial translation trigger")
-                triggerTranslationFromAuto()
-            }
+        val monitor = AutoTranslateMonitor(
+            triggerInitialCapture = triggerInitialCapture,
+            onStableContent = { triggerTranslationFromAuto() }
+        )
+        if (!monitor.start(Rect(rect))) {
+            isAutoTranslateEnabled = false
+            autoTranslateMonitor = null
+            Log.e(TAG, "Auto monitor start failed")
+            showCustomToast("?먮룞踰덉뿭 媛먯떆 ?쒖옉 ?ㅽ뙣")
+            return
+        }
 
-            var changedAt = 0L
-            var waitingForStable = false
-
-            while (isAutoTranslateEnabled) {
-                delay(pollInterval)
-                if (isCaptureInProgress) continue
-
-                // [변경] 캡처 전 오버레이 숨김
-                val signature = captureSignatureForAuto(rect)
-                if (signature == null) continue
-
-                if (lastSignature == null) { lastSignature = signature; continue }
-
-                val changed = isRegionChanged(lastSignature, signature)
-                if (changed) {
-                    Log.d(TAG, "Auto mode: change detected (threshold=$autoDynamicThreshold)")
-                    lastSignature = signature
-                    changedAt = System.currentTimeMillis()
-                    waitingForStable = true
-                    continue
-                }
-
-                if (waitingForStable && System.currentTimeMillis() - changedAt >= stableDelay) {
-                    waitingForStable = false
-                    Log.d(TAG, "Auto mode: stable window reached, trigger translation")
-                    triggerTranslationFromAuto()
-                }
-            }
+        autoTranslateMonitor = monitor
+        if (showToast) {
+            showCustomToast("자동번역 시작: 영역 변화 감지 중")
         }
     }
 
     private fun stopAutoTranslateMonitoring(showToast: Boolean = false) {
+        Log.d(TAG, "Auto monitor stop requested")
         isAutoTranslateEnabled = false
-        autoTranslateJob?.cancel()
-        autoTranslateJob = null
-        if (showToast) showCustomToast("자동번역이 종료되었습니다.")
+        isAutoTriggerPending = false
+        autoTranslateMonitor?.stop()
+        autoTranslateMonitor = null
+        if (showToast) showCustomToast("?먮룞踰덉뿭??醫낅즺?섏뿀?듬땲??")
     }
 
     private fun triggerTranslationFromAuto() {
-        if (isCaptureInProgress) return
+        if (!isAutoTranslateEnabled) {
+            logDebugThrottled("auto_trigger_blocked_disabled", message = "Auto trigger blocked: monitor disabled")
+            return
+        }
+        if (isCaptureInProgress) {
+            logDebugThrottled("auto_trigger_blocked_capturing", message = "Auto trigger blocked: capture in progress")
+            return
+        }
+        if (isAutoTriggerPending) {
+            logDebugThrottled("auto_trigger_blocked_pending", message = "Auto trigger blocked: trigger already pending")
+            return
+        }
+
+        isAutoTriggerPending = true
+        Log.d(TAG, "Auto trigger accepted: start capture")
         removeOverlayView()
         floatingButton.visibility = View.VISIBLE
         startCaptureWithCheck()
     }
 
-    private fun resetAutoChangeLearning() {
-        autoNoiseEma = 0.0
-        autoDynamicThreshold = if (translationMode == TranslationMode.VN_FAST) VN_CHANGE_THRESHOLD else DEFAULT_CHANGE_THRESHOLD
+    private fun ensureMediaProjection(): MediaProjection? {
+        val existing = mediaProjection
+        if (existing != null) return existing
+        if (resultCode == 0 || resultData == null) return null
+        return mediaProjectionManager?.getMediaProjection(resultCode, resultData!!)?.also {
+            mediaProjection = it
+        }
     }
 
-    private fun learnAutoChangeThreshold(diff: Int) {
-        val base = if (translationMode == TranslationMode.VN_FAST) VN_CHANGE_THRESHOLD else DEFAULT_CHANGE_THRESHOLD
-        val clampedSample = min(diff, base * 4).toDouble()
-        autoNoiseEma = if (autoNoiseEma == 0.0) clampedSample else (autoNoiseEma * 0.9) + (clampedSample * 0.1)
-        autoDynamicThreshold = max(base, (autoNoiseEma * 2.5).toInt())
+    private fun getAnalyzeIntervalMs(): Long {
+        val hz = if (translationMode == TranslationMode.VN_FAST) VN_ANALYZE_HZ else DEFAULT_ANALYZE_HZ
+        return (1000L / hz).coerceAtLeast(1L)
     }
 
-    private fun isRegionChanged(previous: AutoRegionSignature, current: AutoRegionSignature): Boolean {
-        val lumaDiff = kotlin.math.abs(previous.avgLuma - current.avgLuma)
-        val edgeDiff = kotlin.math.abs(previous.edgeLuma - current.edgeLuma)
-        val combinedDiff = lumaDiff + (edgeDiff * 2)
-        learnAutoChangeThreshold(combinedDiff)
-        return combinedDiff > autoDynamicThreshold
+    private fun getStableFramesRequired(): Int {
+        return if (translationMode == TranslationMode.VN_FAST) VN_STABLE_FRAMES else DEFAULT_STABLE_FRAMES
     }
 
-    private fun captureRegionSignature(rect: Rect): AutoRegionSignature? {
-        val projection = mediaProjection ?: run {
-            if (resultCode == 0 || resultData == null) return null
-            mediaProjectionManager?.getMediaProjection(resultCode, resultData!!)?.also { mediaProjection = it }
-        } ?: return null
+    private fun getHashDistanceThreshold(): Int {
+        return if (translationMode == TranslationMode.VN_FAST) VN_HASH_DISTANCE_THRESHOLD else DEFAULT_HASH_DISTANCE_THRESHOLD
+    }
 
-        val reader = ImageReader.newInstance(screenWidth, screenHeight, PixelFormat.RGBA_8888, 2)
-        val display = projection.createVirtualDisplay(
-            "AutoTranslateMonitor",
-            screenWidth,
-            screenHeight,
-            screenDensity,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            reader.surface,
-            null,
-            null
-        )
+    private fun calculateMonitorSize(fullWidth: Int, fullHeight: Int): Pair<Int, Int> {
+        var monitorWidth = (fullWidth / MONITOR_DIVISOR).coerceAtLeast(64)
+        var monitorHeight = (fullHeight / MONITOR_DIVISOR).coerceAtLeast(64)
+        val maxSide = max(monitorWidth, monitorHeight)
+        if (maxSide > MONITOR_MAX_SIDE) {
+            monitorWidth = (monitorWidth * MONITOR_MAX_SIDE) / maxSide
+            monitorHeight = (monitorHeight * MONITOR_MAX_SIDE) / maxSide
+        }
+        return Pair(monitorWidth.coerceAtLeast(32), monitorHeight.coerceAtLeast(32))
+    }
 
-        return try {
-            Thread.sleep(120)
-            val image = reader.acquireLatestImage() ?: return null
-            val plane = image.planes.firstOrNull() ?: run {
-                image.close(); return null
+    private fun mapRectToMonitor(rect: Rect, monitorWidth: Int, monitorHeight: Int): Rect? {
+        if (screenWidth <= 0 || screenHeight <= 0) return null
+        val left = ((rect.left.toLong() * monitorWidth) / screenWidth).toInt().coerceIn(0, monitorWidth - 1)
+        val top = ((rect.top.toLong() * monitorHeight) / screenHeight).toInt().coerceIn(0, monitorHeight - 1)
+        val rightRaw = ((rect.right.toLong() * monitorWidth) / screenWidth).toInt()
+        val bottomRaw = ((rect.bottom.toLong() * monitorHeight) / screenHeight).toInt()
+        val right = rightRaw.coerceIn(left + 1, monitorWidth)
+        val bottom = bottomRaw.coerceIn(top + 1, monitorHeight)
+        if (right - left < 2 || bottom - top < 2) return null
+        return Rect(left, top, right, bottom)
+    }
+
+    private inner class AutoTranslateMonitor(
+        private val triggerInitialCapture: Boolean,
+        private val onStableContent: () -> Unit
+    ) {
+        private var monitorThread: HandlerThread? = null
+        private var monitorReader: ImageReader? = null
+        private var monitorDisplay: VirtualDisplay? = null
+        private var monitorRect: Rect? = null
+
+        private var lastAnalyzeAtMs = 0L
+        private var lastHash: Long? = null
+        private var hasChange = false
+        private var stableCount = 0
+        private var initialPending = triggerInitialCapture
+        private val dHashSamples = IntArray(9 * 8)
+
+        private val analyzeIntervalMs = getAnalyzeIntervalMs()
+        private val stableFramesRequired = getStableFramesRequired()
+        private val distanceThreshold = getHashDistanceThreshold()
+
+        fun start(targetRect: Rect): Boolean {
+            stop()
+
+            val projection = ensureMediaProjection() ?: run {
+                Log.e(TAG, "Auto monitor start failed: mediaProjection is null")
+                return false
             }
-            val rowStride = plane.rowStride
-            val pixelStride = plane.pixelStride
-            val bufferWidth = rowStride / pixelStride
-            val fullBitmap = Bitmap.createBitmap(bufferWidth, screenHeight, Bitmap.Config.ARGB_8888)
-            fullBitmap.copyPixelsFromBuffer(plane.buffer)
-            image.close()
+            updateScreenMetrics()
 
-            val safeRect = Rect(rect)
-            val bitmapRect = Rect(0, 0, fullBitmap.width, fullBitmap.height)
-            if (!safeRect.intersect(bitmapRect) || safeRect.width() < 2 || safeRect.height() < 2) {
-                fullBitmap.recycle()
-                return null
+            val (monitorWidth, monitorHeight) = calculateMonitorSize(screenWidth, screenHeight)
+            val scaledRect = mapRectToMonitor(targetRect, monitorWidth, monitorHeight) ?: run {
+                Log.e(TAG, "Auto monitor start failed: scaledRect is null, targetRect=$targetRect, monitor=${monitorWidth}x$monitorHeight")
+                return false
             }
 
-            val cropped = Bitmap.createBitmap(fullBitmap, safeRect.left, safeRect.top, safeRect.width(), safeRect.height())
-            fullBitmap.recycle()
-            val sampleW = min(24, cropped.width)
-            val sampleH = min(24, cropped.height)
-            val scaled = Bitmap.createScaledBitmap(cropped, sampleW, sampleH, true)
-            if (scaled != cropped) cropped.recycle()
+            val thread = HandlerThread("AutoTranslateMonitorThread")
+            thread.start()
+            val handler = Handler(thread.looper)
 
-            var lumaSum = 0L
-            var edgeSum = 0L
-            var sampleCount = 0
-            val prevRow = IntArray(sampleW) { -1 }
-            var y = 0
-            while (y < sampleH) {
-                var prevLumaInRow = -1
-                var x = 0
-                while (x < sampleW) {
-                    val pixel = scaled.getPixel(x, y)
-                    val r = (pixel shr 16) and 0xFF
-                    val g = (pixel shr 8) and 0xFF
-                    val b = pixel and 0xFF
-                    val luma = ((r * 3) + (g * 6) + b) / 10
+            return try {
+                val reader = ImageReader.newInstance(monitorWidth, monitorHeight, PixelFormat.RGBA_8888, 2)
+                val display = projection.createVirtualDisplay(
+                    "AutoTranslateMonitor",
+                    monitorWidth,
+                    monitorHeight,
+                    screenDensity,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    reader.surface,
+                    null,
+                    handler
+                )
 
-                    lumaSum += luma
-                    sampleCount++
+                monitorThread = thread
+                monitorReader = reader
+                monitorDisplay = display
+                monitorRect = scaledRect
+                reader.setOnImageAvailableListener({ onImageAvailable(it) }, handler)
+                Log.d(TAG, "Auto monitor started: monitor=${monitorWidth}x$monitorHeight, roi=$scaledRect, interval=${analyzeIntervalMs}ms, stableFrames=$stableFramesRequired, threshold=$distanceThreshold")
+                true
+            } catch (e: Exception) {
+                try { thread.quitSafely() } catch (_: Exception) {}
+                Log.e(TAG, "Auto monitor start exception", e)
+                false
+            }
+        }
 
-                    if (prevLumaInRow >= 0) {
-                        edgeSum += kotlin.math.abs(luma - prevLumaInRow)
-                    }
-                    if (prevRow[x] >= 0) {
-                        edgeSum += kotlin.math.abs(luma - prevRow[x])
-                    }
+        fun stop() {
+            try {
+                monitorReader?.setOnImageAvailableListener(null, null)
+            } catch (_: Exception) {}
+            try {
+                monitorDisplay?.release()
+            } catch (_: Exception) {}
+            try {
+                monitorReader?.close()
+            } catch (_: Exception) {}
+            try {
+                monitorThread?.quitSafely()
+            } catch (_: Exception) {}
 
-                    prevLumaInRow = luma
-                    prevRow[x] = luma
-                    x++
+            monitorDisplay = null
+            monitorReader = null
+            monitorThread = null
+            monitorRect = null
+            lastAnalyzeAtMs = 0L
+            lastHash = null
+            hasChange = false
+            stableCount = 0
+            initialPending = triggerInitialCapture
+            Log.d(TAG, "Auto monitor stopped")
+        }
+
+        private fun onImageAvailable(reader: ImageReader) {
+            val image = try {
+                reader.acquireLatestImage()
+            } catch (_: Exception) {
+                null
+            } ?: return
+
+            try {
+                if (!isAutoTranslateEnabled) {
+                    logDebugThrottled("auto_skip_disabled", message = "Auto monitor skip frame: monitor disabled")
+                    return
                 }
-                y++
-            }
-            scaled.recycle()
-            if (sampleCount == 0) return null
+                if (isCaptureInProgress) {
+                    logDebugThrottled("auto_skip_capture", message = "Auto monitor skip frame: capture in progress")
+                    return
+                }
+                if (isAutoTriggerPending) {
+                    logDebugThrottled("auto_skip_pending", message = "Auto monitor skip frame: trigger pending")
+                    return
+                }
 
-            val avgLuma = (lumaSum / sampleCount).toInt()
-            val avgEdge = (edgeSum / max(1, sampleCount * 2)).toInt()
-            AutoRegionSignature(avgLuma = avgLuma, edgeLuma = avgEdge)
-        } catch (e: Exception) {
-            null
-        } finally {
-            display?.release()
-            reader.close()
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastAnalyzeAtMs < analyzeIntervalMs) {
+                    return
+                }
+                lastAnalyzeAtMs = now
+
+                val rect = monitorRect ?: return
+                val hash = computeDHash(image, rect) ?: run {
+                    logDebugThrottled("auto_hash_null", message = "Auto monitor hash failed: image=${image.width}x${image.height}, roi=$rect")
+                    return
+                }
+                val previousHash = lastHash
+
+                if (previousHash == null) {
+                    lastHash = hash
+                    if (initialPending) {
+                        initialPending = false
+                        serviceScope.launch(Dispatchers.Main) {
+                            if (isAutoTranslateEnabled && !isCaptureInProgress && !isAutoTriggerPending) {
+                                Log.d(TAG, "Auto monitor: initial trigger")
+                                onStableContent()
+                            }
+                        }
+                    }
+                    return
+                }
+
+                val distance = java.lang.Long.bitCount(previousHash xor hash)
+                lastHash = hash
+
+                if (distance >= distanceThreshold) {
+                    if (!hasChange) {
+                        Log.d(TAG, "Auto monitor: changed(distance=$distance)")
+                    }
+                    hasChange = true
+                    stableCount = 0
+                    return
+                }
+
+                if (!hasChange) return
+
+                stableCount += 1
+                if (stableCount >= stableFramesRequired) {
+                    hasChange = false
+                    stableCount = 0
+                    Log.d(TAG, "Auto monitor: stable(stableCount=$stableFramesRequired, distance=$distance)")
+                    serviceScope.launch(Dispatchers.Main) {
+                        if (isAutoTranslateEnabled && !isCaptureInProgress && !isAutoTriggerPending) {
+                            onStableContent()
+                        }
+                    }
+                }
+            } finally {
+                image.close()
+            }
+        }
+
+        private fun computeDHash(image: Image, roiRect: Rect): Long? {
+            val plane = image.planes.firstOrNull() ?: return null
+            val pixelStride = plane.pixelStride
+            val rowStride = plane.rowStride
+            if (pixelStride < 4 || image.width < 2 || image.height < 2) return null
+
+            val left = roiRect.left.coerceIn(0, image.width - 2)
+            val top = roiRect.top.coerceIn(0, image.height - 2)
+            val right = roiRect.right.coerceIn(left + 2, image.width)
+            val bottom = roiRect.bottom.coerceIn(top + 2, image.height)
+            val roiWidth = right - left
+            val roiHeight = bottom - top
+            if (roiWidth < 2 || roiHeight < 2) return null
+
+            val buffer = plane.buffer
+            val bufferLimit = buffer.limit()
+            var sampleIndex = 0
+            val widthMinusOne = roiWidth - 1
+            val heightMinusOne = roiHeight - 1
+
+            // 9x8 域밸챶???곷뮞?냈????묐탣??筌욊낯????뚮선 64??쑵??dHash???④쑴沅??뺣뼄.
+            for (yStep in 0 until 8) {
+                val sampleY = top + ((yStep * heightMinusOne) / 7)
+                for (xStep in 0 until 9) {
+                    val sampleX = left + ((xStep * widthMinusOne) / 8)
+                    val offset = (sampleY * rowStride) + (sampleX * pixelStride)
+                    if (offset < 0 || offset + 2 >= bufferLimit) return null
+
+                    val r = buffer.get(offset).toInt() and 0xFF
+                    val g = buffer.get(offset + 1).toInt() and 0xFF
+                    val b = buffer.get(offset + 2).toInt() and 0xFF
+                    dHashSamples[sampleIndex] = ((r * 3) + (g * 6) + b) / 10
+                    sampleIndex += 1
+                }
+            }
+
+            var hash = 0L
+            var bitIndex = 0
+            for (row in 0 until 8) {
+                val base = row * 9
+                for (col in 0 until 8) {
+                    if (dHashSamples[base + col + 1] >= dHashSamples[base + col]) {
+                        hash = hash or (1L shl bitIndex)
+                    }
+                    bitIndex += 1
+                }
+            }
+            return hash
         }
     }
 
@@ -1022,13 +1185,15 @@ class ScreenTranslationService : Service() {
         serviceScope.launch {
             val uid = auth.currentUser?.uid
             if (uid == null) {
-                showCustomToast("로그인이 필요합니다.")
+                Log.w(TAG, "Capture blocked: user is not logged in")
+                showCustomToast("濡쒓렇?몄씠 ?꾩슂?⑸땲??")
+                isAutoTriggerPending = false
                 isCaptureInProgress = false
                 restoreOverlays()
                 return@launch
             }
 
-            // [변경] 등급별 잔액 체크
+            // 잔액 체크
             if (translationMode == TranslationMode.DEFAULT && currentModelTier == "PRO") {
                 val hasGold = try {
                     val snapshot = db.collection("users").document(uid).get().await()
@@ -1036,7 +1201,9 @@ class ScreenTranslationService : Service() {
                 } catch (e: Exception) { false }
 
                 if (!hasGold) {
-                    showCustomToast("골드가 부족합니다! 충전해주세요.")
+                    Log.w(TAG, "Capture blocked: insufficient gold for PRO tier")
+                    showCustomToast("怨⑤뱶媛 遺議깊빀?덈떎! 異⑹쟾?댁＜?몄슂.")
+                    isAutoTriggerPending = false
                     isCaptureInProgress = false
                     restoreOverlays()
                     return@launch
@@ -1048,15 +1215,18 @@ class ScreenTranslationService : Service() {
                 } catch (e: Exception) { false }
 
                 if (!hasSilver) {
-                    showCustomToast("실버가 부족합니다! 충전해주세요.")
+                    Log.w(TAG, "Capture blocked: insufficient silver for ADVANCED tier")
+                    showCustomToast("?ㅻ쾭媛 遺議깊빀?덈떎! 異⑹쟾?댁＜?몄슂.")
+                    isAutoTriggerPending = false
                     isCaptureInProgress = false
                     restoreOverlays()
                     return@launch
                 }
             }
-            // STANDARD (무료) -> 패스
+            // STANDARD (?얜?利? -> ??λ뮞
 
             delay(100)
+            Log.d(TAG, "Capture check passed: startCapture()")
             startCapture()
         }
     }
@@ -1081,31 +1251,6 @@ class ScreenTranslationService : Service() {
         }
     }
 
-    private suspend fun captureSignatureForAuto(rect: Rect): AutoRegionSignature? {
-        val shouldTemporarilyHideOverlay =
-            resultOverlayView?.visibility == View.VISIBLE && !isCaptureInProgress
-
-        if (shouldTemporarilyHideOverlay) {
-            withContext(Dispatchers.Main) {
-                resultOverlayView?.visibility = View.INVISIBLE
-            }
-            // Wait one frame so overlay exclusion is reflected in captured surface.
-            delay(16)
-        }
-
-        return try {
-            withContext(Dispatchers.Default) { captureRegionSignature(rect) }
-        } finally {
-            if (shouldTemporarilyHideOverlay) {
-                withContext(Dispatchers.Main) {
-                    if (!isCaptureInProgress) {
-                        resultOverlayView?.visibility = View.VISIBLE
-                    }
-                }
-            }
-        }
-    }
-
     private fun restoreOverlays() {
         serviceScope.launch {
             floatingButton.visibility = View.VISIBLE
@@ -1114,7 +1259,11 @@ class ScreenTranslationService : Service() {
     }
 
     private fun startCapture() {
-        if (isCaptureInProgress) return
+        if (isCaptureInProgress) {
+            isAutoTriggerPending = false
+            return
+        }
+        isAutoTriggerPending = false
         isCaptureInProgress = true
         try {
             updateScreenMetrics()
@@ -1124,14 +1273,13 @@ class ScreenTranslationService : Service() {
             captureControlsOverlayView?.visibility = View.GONE
             indicatorOverlay?.visibility = View.GONE
 
-            if (mediaProjection == null) {
-                if (resultCode == 0 || resultData == null) {
-                    showCustomToast("캡처 권한이 없습니다.")
-                    isCaptureInProgress = false
-                    restoreOverlays()
-                    return
-                }
-                mediaProjection = mediaProjectionManager?.getMediaProjection(resultCode, resultData!!)
+            val projection = ensureMediaProjection()
+            if (projection == null) {
+                Log.e(TAG, "Capture blocked: mediaProjection is null")
+                showCustomToast("罹≪쿂 沅뚰븳???놁뒿?덈떎.")
+                isCaptureInProgress = false
+                restoreOverlays()
+                return
             }
             imageReader?.close()
             imageReader = ImageReader.newInstance(screenWidth, screenHeight, PixelFormat.RGBA_8888, 2)
@@ -1139,16 +1287,19 @@ class ScreenTranslationService : Service() {
             serviceScope.launch {
                 delay(100)
                 try {
-                    virtualDisplay = mediaProjection?.createVirtualDisplay("ScreenCapture", screenWidth, screenHeight, screenDensity, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader!!.surface, null, null)
+                    Log.d(TAG, "Capture start: screen=${screenWidth}x$screenHeight")
+                    virtualDisplay = projection.createVirtualDisplay("ScreenCapture", screenWidth, screenHeight, screenDensity, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader!!.surface, null, null)
                     delay(300)
                     processCapturedImage()
                 } catch (e: Exception) {
+                    Log.e(TAG, "Capture failed while creating virtual display", e)
                     e.printStackTrace()
                     isCaptureInProgress = false
                     restoreOverlays()
                 }
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Capture start exception", e)
             e.printStackTrace()
             isCaptureInProgress = false
             restoreOverlays()
@@ -1179,14 +1330,14 @@ class ScreenTranslationService : Service() {
                 val rect = targetCaptureRect
 
                 if (rect != null) {
-                    // [핵심 수정] 추가 보정 로직 제거: NO_LIMITS 사용 시 Raw Screen 좌표와 일치
-                    // rect가 전체 화면 좌표 기준으로 저장되므로(selection에서 NO_LIMITS 사용),
-                    // 그대로 잘라내면 됩니다.
+                    // [???뼎 ??륁젟] ?곕떽? 癰귣똻??嚥≪뮇彛???볤탢: NO_LIMITS ??????Raw Screen ?ル슦紐?? ??깊뒄
+                    // rect揶쎛 ?袁⑷퍥 ?遺얇늺 ?ル슦紐?疫꿸퀣???곗쨮 ???貫由븃첋?嚥?selection?癒?퐣 NO_LIMITS ????,
+                    // 域밸챶?嚥???롮뵬??????몃빍??
 
                     val bitmapRect = Rect(0, 0, reusableBitmap!!.width, reusableBitmap!!.height)
                     val cropRect = Rect(rect)
 
-                    // 교집합 영역만 자름 (화면 밖으로 나간 영역 자동 처리)
+                    // ?대Ŋ彛???怨몃열筌??癒?カ (?遺얇늺 獄쏅쉼?앮에???띿퍢 ?怨몃열 ?癒?짗 筌ｌ꼶??
                     if (cropRect.intersect(bitmapRect)) {
                         finalBitmap = Bitmap.createBitmap(reusableBitmap!!, cropRect.left, cropRect.top, cropRect.width(), cropRect.height())
                     } else {
@@ -1200,11 +1351,12 @@ class ScreenTranslationService : Service() {
                     stopCaptureResource()
                     if (finalBitmap != null) runOCR(finalBitmap) else {
                         Log.e(TAG, "finalBitmap is null")
-                        showCustomToast("캡처 영역 오류")
+                        showCustomToast("罹≪쿂 ?곸뿭 ?ㅻ쪟")
                         restoreOverlays()
                     }
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "processCapturedImage failed", e)
                 e.printStackTrace()
                 withContext(Dispatchers.Main) { restoreOverlays() }
             }
@@ -1215,6 +1367,7 @@ class ScreenTranslationService : Service() {
 
     private fun runOCR(bitmap: Bitmap) {
         serviceScope.launch {
+            Log.d(TAG, "OCR start: bitmap=${bitmap.width}x${bitmap.height}, sourceLang=$sourceLang, mode=$translationMode, model=$currentModelTier")
             val scaleFactor = 2.0f
             val shouldScale = bitmap.width * bitmap.height < 4000 * 4000
             val ocrBitmap = if (shouldScale) {
@@ -1257,31 +1410,37 @@ class ScreenTranslationService : Service() {
                 translationQueue.addAll(scaledBackBlocks.mapIndexed { idx, block -> block.copy(id = idx) })
 
                 val detectedCharCount = translationQueue.sumOf { it.originalText.length }
+                Log.d(TAG, "OCR result: blocks=${translationQueue.size}, detectedChars=$detectedCharCount")
                 if (translationMode == TranslationMode.VN_FAST && detectedCharCount > VN_INPUT_CHAR_LIMIT) {
+                    Log.w(TAG, "OCR blocked: VN input limit exceeded ($detectedCharCount > $VN_INPUT_CHAR_LIMIT)")
                     showCustomToast(getString(R.string.vn_input_limit_exceeded))
                     isCaptureInProgress = false
                     restoreOverlays()
                     if (isAutoMode) {
-                        startAutoTranslateMonitoring()
+                        startAutoTranslateMonitoring(triggerInitialCapture = false, showToast = false)
                     }
                     return@launch
                 }
                 val maxCharCount = getMaxDetectedCharCount()
                 if (detectedCharCount >= maxCharCount) {
+                    Log.w(TAG, "OCR blocked: max char exceeded ($detectedCharCount >= $maxCharCount)")
                     showCustomToast(
-                        "감지된 글자가 너무 많아 번역할 수 없습니다. (감지: ${detectedCharCount}자 / 제한: ${maxCharCount}자)"
+                        "媛먯???湲?먭? ?덈Т 留롮븘 踰덉뿭?????놁뒿?덈떎. (媛먯?: ${detectedCharCount}??/ ?쒗븳: ${maxCharCount}??"
                     )
                     isCaptureInProgress = false
                     restoreOverlays()
                 } else if (translationQueue.isNotEmpty()) {
+                    Log.d(TAG, "OCR pass: start translation animation")
                     processTranslationWithAnimation(bitmap)
                 } else {
-                    showCustomToast("텍스트를 찾지 못했습니다.")
+                    Log.w(TAG, "OCR produced no blocks")
+                    showCustomToast("?띿뒪?몃? 李얠? 紐삵뻽?듬땲??")
                     isCaptureInProgress = false
                     restoreOverlays()
                 }
             } catch (e: Exception) {
-                showCustomToast("OCR 실패")
+                Log.e(TAG, "OCR failed", e)
+                showCustomToast("OCR ?ㅽ뙣")
                 isCaptureInProgress = false
                 restoreOverlays()
             } finally {
@@ -1312,24 +1471,28 @@ class ScreenTranslationService : Service() {
             val translationDeferred = async(Dispatchers.IO) {
                 try {
                     if (translationMode == TranslationMode.VN_FAST) {
+                        Log.d(TAG, "Translation start: VN_FAST blocks=${translationQueue.size}")
                         performVnFastTranslation(translationQueue)
                         true
                     } else if (currentModelTier == "STANDARD") {
                         // Local ML Kit Translation
+                        Log.d(TAG, "Translation start: LOCAL blocks=${translationQueue.size}")
                         performLocalTranslation(translationQueue, sourceLang)
                         true
                     } else {
                         // Server Translation
+                        Log.d(TAG, "Translation start: SERVER blocks=${translationQueue.size}, model=$currentModelTier, target=$targetLang")
                         TranslationRepository.translate(
                             blocks = translationQueue,
                             targetLang = targetLang,
                             imageCount = 1,
-                            serviceType = "SCREEN",
-                            modelTier = currentModelTier // [추가]
+                            serviceType = if (isAutoMode) "SCREEN_AUTO" else "SCREEN_MANUAL",
+                            modelTier = currentModelTier // [?곕떽?]
                         )
                         true
                     }
                 } catch (e: Exception) {
+                    Log.e(TAG, "Translation failed", e)
                     if (translationMode == TranslationMode.VN_FAST) {
                         if (e is FirebaseFunctionsException &&
                             e.code == FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED) {
@@ -1351,15 +1514,19 @@ class ScreenTranslationService : Service() {
 
             if (translationDeferred.isActive) {
                 showLoadingOverlay()
-                updateLoadingText("번역중...")
+                updateLoadingText("踰덉뿭以?..")
             }
             val isSuccess = translationDeferred.await()
             hideLoadingOverlay()
 
-            if (isSuccess) updateOverlayWithText() else {
+            if (isSuccess) {
+                Log.d(TAG, "Translation success")
+                updateOverlayWithText()
+            } else {
+                Log.w(TAG, "Translation result: failed")
                 isCaptureInProgress = false
                 if (translationMode != TranslationMode.VN_FAST) {
-                    showCustomToast("번역 중 오류가 발생했습니다.")
+                    showCustomToast("踰덉뿭 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.")
                 }
                 restoreOverlays()
             }
@@ -1384,7 +1551,7 @@ class ScreenTranslationService : Service() {
         }
     }
 
-    // [New] ML Kit 로컬 번역 실행 (STANDARD tier)
+    // [New] ML Kit 嚥≪뮇類?甕곕뜆肉???쎈뻬 (STANDARD tier)
     private suspend fun performLocalTranslation(blocks: List<MangaBlock>, sourceLang: String) {
         val srcCode = mapLangCode(sourceLang)
         val tgtCode = mapLangCode(targetLang)
@@ -1395,7 +1562,7 @@ class ScreenTranslationService : Service() {
         val translator = Translation.getClient(options)
 
         try {
-            // 모델 다운로드 확인
+            // 筌뤴뫀????쇱뒲嚥≪뮆諭??類ㅼ뵥
             val conditions = DownloadConditions.Builder().requireWifi().build()
             translator.downloadModelIfNeeded(conditions).await()
 
@@ -1404,7 +1571,7 @@ class ScreenTranslationService : Service() {
                     val result = translator.translate(block.originalText).await()
                     block.translatedText = result
                 } catch (e: Exception) {
-                    block.translatedText = "번역 실패"
+                    block.translatedText = "踰덉뿭 ?ㅽ뙣"
                 }
             }
         } catch (e: Exception) {
@@ -1435,8 +1602,8 @@ class ScreenTranslationService : Service() {
         isCaptureInProgress = false
 
         if (isAutoMode) {
-            // [변경] 자동 화면번역: 1차 번역 완료 후 자동 모니터링 시작
-            startAutoTranslateMonitoring()
+            // [癰궰野? ?癒?짗 ?遺얇늺甕곕뜆肉? 1筌?甕곕뜆肉??袁⑥┷ ???癒?짗 筌뤴뫀??怨뺤춦 ??뽰삂
+            startAutoTranslateMonitoring(triggerInitialCapture = false, showToast = false)
         } else if (!isAutoTranslateEnabled) {
             floatingButton.visibility = View.VISIBLE
             if (targetCaptureRect != null) indicatorOverlay?.visibility = View.VISIBLE
@@ -1454,7 +1621,7 @@ class ScreenTranslationService : Service() {
     private fun createNotification(): Notification {
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, "SCREEN_TRANS_CHANNEL") else Notification.Builder(this)
         return builder.setContentTitle("화면 번역 실행 중")
-            .setContentText("모델: $currentModelTier") // [추가]
+            .setContentText("紐⑤뜽: $currentModelTier")
             .setSmallIcon(android.R.drawable.ic_menu_search).build()
     }
 
@@ -1471,4 +1638,5 @@ class ScreenTranslationService : Service() {
         safeRemoveView(currentToastView)
     }
 }
+
 

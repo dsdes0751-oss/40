@@ -1,18 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5"
+    android:background="@color/bg_app"
     android:orientation="vertical">
 
     <LinearLayout
         android:id="@+id/btn_back"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="@android:color/white"
-        android:elevation="2dp"
+        android:background="@color/bg_surface"
         android:gravity="center_vertical"
+        android:minHeight="56dp"
         android:paddingHorizontal="16dp">
 
         <ImageView
@@ -20,42 +20,39 @@
             android:layout_height="24dp"
             android:contentDescription="@string/common_back"
             android:src="@drawable/ic_arrow_back_24"
-            app:tint="#333333" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:text="@string/settings_title"
-            android:textColor="#333333"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.App.Subtitle" />
     </LinearLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="20dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_my_info"
-                android:textColor="#666666"
-                android:textSize="14sp" />
+                android:textAppearance="@style/TextAppearance.App.Caption" />
 
             <androidx.cardview.widget.CardView
+                style="@style/Widget.Proj01.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -68,7 +65,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/settings_guest_email_placeholder"
-                        android:textColor="#333333"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -83,7 +80,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/settings_uid_label"
-                            android:textColor="#888888"
+                            android:textColor="@color/text_muted"
                             android:textSize="12sp" />
 
                         <TextView
@@ -94,7 +91,7 @@
                             android:ellipsize="end"
                             android:maxLines="1"
                             android:text="@string/common_loading"
-                            android:textColor="#888888"
+                            android:textColor="@color/text_muted"
                             android:textSize="12sp" />
 
                         <TextView
@@ -102,9 +99,11 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:background="?attr/selectableItemBackground"
-                            android:padding="4dp"
+                            android:minHeight="48dp"
+                            android:gravity="center"
+                            android:paddingHorizontal="8dp"
                             android:text="@string/common_copy"
-                            android:textColor="@color/primary_blue"
+                            android:textColor="@color/brand_primary"
                             android:textSize="12sp" />
                     </LinearLayout>
 
@@ -121,7 +120,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/settings_silver_default"
-                            android:textColor="#757575"
+                            android:textColor="@color/text_secondary"
                             android:textStyle="bold" />
 
                         <TextView
@@ -130,7 +129,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/settings_gold_default"
-                            android:textColor="#FFA000"
+                            android:textColor="@color/status_warning"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -138,16 +137,18 @@
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:layout_marginVertical="16dp"
-                        android:background="#F0F0F0" />
+                        android:background="@color/border_subtle" />
 
                     <TextView
                         android:id="@+id/btn_logout"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:background="?attr/selectableItemBackground"
-                        android:padding="4dp"
+                        android:minHeight="48dp"
+                        android:gravity="center"
+                        android:paddingHorizontal="8dp"
                         android:text="@string/common_logout"
-                        android:textColor="#FF5252"
+                        android:textColor="@color/status_error"
                         android:textStyle="bold" />
 
                 </LinearLayout>
@@ -159,15 +160,12 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_transaction_history"
-                android:textColor="#666666"
-                android:textSize="14sp" />
+                android:textAppearance="@style/TextAppearance.App.Caption" />
 
             <androidx.cardview.widget.CardView
+                style="@style/Widget.Proj01.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -190,7 +188,7 @@
                         android:gravity="center"
                         android:padding="20dp"
                         android:text="@string/settings_history_empty"
-                        android:textColor="#999999"
+                        android:textColor="@color/text_muted"
                         android:visibility="gone" />
 
                 </LinearLayout>
@@ -202,15 +200,12 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_data_management"
-                android:textColor="#666666"
-                android:textSize="14sp" />
+                android:textAppearance="@style/TextAppearance.App.Caption" />
 
             <androidx.cardview.widget.CardView
+                style="@style/Widget.Proj01.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -222,9 +217,11 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="?attr/selectableItemBackground"
-                        android:padding="16dp"
+                        android:minHeight="48dp"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
                         android:text="@string/settings_export_books"
-                        android:textColor="#333333" />
+                        android:textColor="@color/text_primary" />
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -235,15 +232,12 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/settings_other"
-                android:textColor="#666666"
-                android:textSize="14sp" />
+                android:textAppearance="@style/TextAppearance.App.Caption" />
 
             <androidx.cardview.widget.CardView
+                style="@style/Widget.Proj01.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -255,76 +249,86 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="?attr/selectableItemBackground"
-                        android:padding="16dp"
+                        android:minHeight="48dp"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
                         android:text="@string/settings_language"
-                        android:textColor="#333333" />
+                        android:textColor="@color/text_primary" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#F0F0F0" />
+                        android:background="@color/border_subtle" />
 
                     <TextView
                         android:id="@+id/btn_theme"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="?attr/selectableItemBackground"
-                        android:padding="16dp"
+                        android:minHeight="48dp"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
                         android:text="@string/settings_theme"
-                        android:textColor="#333333" />
+                        android:textColor="@color/text_primary" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#F0F0F0" />
+                        android:background="@color/border_subtle" />
 
                     <TextView
                         android:id="@+id/btn_feedback"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="?attr/selectableItemBackground"
-                        android:padding="16dp"
+                        android:minHeight="48dp"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
                         android:text="@string/settings_send_feedback"
-                        android:textColor="#333333" />
+                        android:textColor="@color/text_primary" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#F0F0F0" />
+                        android:background="@color/border_subtle" />
 
                     <TextView
                         android:id="@+id/btn_privacy_policy"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="?attr/selectableItemBackground"
-                        android:padding="16dp"
+                        android:minHeight="48dp"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
                         android:text="@string/settings_privacy_policy"
-                        android:textColor="#333333" />
+                        android:textColor="@color/text_primary" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#F0F0F0" />
+                        android:background="@color/border_subtle" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:minHeight="48dp"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="16dp">
+                        android:paddingHorizontal="16dp">
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/settings_version"
-                            android:textColor="#333333" />
+                            android:textColor="@color/text_primary" />
 
                         <TextView
                             android:id="@+id/tv_version"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/settings_version_default"
-                            android:textColor="#888888" />
+                            android:textColor="@color/text_muted" />
                     </LinearLayout>
 
                 </LinearLayout>

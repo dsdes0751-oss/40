@@ -1,4 +1,4 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
 import android.app.Activity
 import android.content.Context
@@ -10,12 +10,12 @@ import android.provider.Settings
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ProgressBar
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -27,8 +27,8 @@ class VnGameTranslationActivity : AppCompatActivity() {
         val deeplCode: String
     )
 
-    private lateinit var spinnerSourceLang: Spinner
-    private lateinit var spinnerTargetLang: Spinner
+    private lateinit var spinnerSourceLang: MaterialAutoCompleteTextView
+    private lateinit var spinnerTargetLang: MaterialAutoCompleteTextView
     private lateinit var progressBalance: ProgressBar
     private lateinit var tvPercent: TextView
     private lateinit var tvRemainingChars: TextView
@@ -82,8 +82,22 @@ class VnGameTranslationActivity : AppCompatActivity() {
         tvPercent = findViewById(R.id.tv_vn_percent)
         tvRemainingChars = findViewById(R.id.tv_vn_remaining_chars)
 
-        setupSpinners()
+        setupDropdowns()
         updateBalanceUi(0L)
+
+        findViewById<Button>(R.id.btn_nav_main).setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            })
+            finish()
+        }
+
+        findViewById<Button>(R.id.btn_nav_library).setOnClickListener {
+            startActivity(Intent(this, LibraryActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            })
+            finish()
+        }
 
         findViewById<Button>(R.id.btn_vn_top_up).setOnClickListener {
             startActivity(Intent(this, VnCreditChargeActivity::class.java))
@@ -95,7 +109,7 @@ class VnGameTranslationActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                val runningTask = TranslationWorkState.runningTaskName(this) ?: "다른 번역"
+                val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
                 Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
@@ -108,22 +122,14 @@ class VnGameTranslationActivity : AppCompatActivity() {
         refreshBalance()
     }
 
-    private fun setupSpinners() {
-        spinnerSourceLang.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_item,
-            sourceLangOptions.map { it.label }
-        ).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
+    private fun setupDropdowns() {
+        val sourceLabels = sourceLangOptions.map { it.label }
+        spinnerSourceLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, sourceLabels))
+        spinnerSourceLang.setText(sourceLabels.firstOrNull().orEmpty(), false)
 
-        spinnerTargetLang.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_item,
-            targetLangOptions.map { it.label }
-        ).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
+        val targetLabels = targetLangOptions.map { it.label }
+        spinnerTargetLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, targetLabels))
+        spinnerTargetLang.setText(targetLabels.firstOrNull().orEmpty(), false)
     }
 
     private fun refreshBalance() {
@@ -163,8 +169,10 @@ class VnGameTranslationActivity : AppCompatActivity() {
     }
 
     private fun startVnFastService(resultCode: Int, data: Intent) {
-        val sourceOption = sourceLangOptions[spinnerSourceLang.selectedItemPosition]
-        val targetOption = targetLangOptions[spinnerTargetLang.selectedItemPosition]
+        val sourceOption = sourceLangOptions.firstOrNull { it.label == spinnerSourceLang.text.toString() }
+            ?: sourceLangOptions.first()
+        val targetOption = targetLangOptions.firstOrNull { it.label == spinnerTargetLang.text.toString() }
+            ?: targetLangOptions.first()
 
         val intent = Intent(this, ScreenTranslationService::class.java).apply {
             action = ScreenTranslationService.ACTION_START_AUTO

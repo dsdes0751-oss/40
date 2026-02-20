@@ -60,8 +60,14 @@ export const translateManga = onCall({
     const startTime = Date.now();
 
     let txDescription = "";
-    if (serviceType === "SCREEN") {
+    if (serviceType === "SCREEN_MANUAL") {
+        txDescription = "Screen Translation (INSTANT)";
+    } else if (serviceType === "SCREEN_AUTO") {
+        txDescription = "Screen Translation (AUTO)";
+    } else if (serviceType === "SCREEN") {
         txDescription = "Screen Translation";
+    } else if (serviceType === "MANGA_BATCH") {
+        txDescription = `Manga Batch Translation (${cost} pages)`;
     } else {
         txDescription = `Manga Translation (${cost} pages)`;
     }
@@ -728,4 +734,3 @@ export const verifyPurchase = onCall({
         throw new HttpsError("internal", "충전 처리 중 오류가 발생했습니다.");
     }
 });
-

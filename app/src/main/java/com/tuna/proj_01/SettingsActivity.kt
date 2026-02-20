@@ -36,8 +36,27 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
+import kotlin.math.abs
 
 class SettingsActivity : AppCompatActivity() {
+    private companion object {
+        // 내역은 최근 50개만 표시하여 렌더링/스크롤 비용을 제한
+        private const val MAX_HISTORY_ITEMS = 50L
+    }
+
+    private data class TransactionEntry(
+        val id: String,
+        val type: String,
+        val currency: String,
+        val amount: Long,
+        val description: String,
+        val timestamp: Long
+    )
+
+    private data class ParsedMassUse(
+        val pages: Int,
+        val tier: String
+    )
 
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -149,30 +168,29 @@ class SettingsActivity : AppCompatActivity() {
         db.collection("users").document(user.uid)
             .collection("transactions")
             .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(50)
+            .limit(MAX_HISTORY_ITEMS)
             .get()
             .addOnSuccessListener { result ->
                 if (result.isEmpty) {
                     tvEmpty.visibility = View.VISIBLE
                     historyAdapter.submitList(emptyList())
                 } else {
-                    val list = result.documents.mapNotNull { doc ->
+                    val entries = result.documents.mapNotNull { doc ->
                         try {
-                            val type = doc.getString("type") ?: ""
-                            val currency = doc.getString("currency") ?: "Silver"
-                            val amount = doc.getLong("amount") ?: 0L
-                            val desc = doc.getString("description") ?: getString(R.string.settings_history_default)
-
-                            val displayDesc = "[$currency] $desc"
-
-                            SilverHistory(
+                            TransactionEntry(
                                 id = doc.id,
-                                amount = amount,
-                                description = displayDesc,
+                                type = doc.getString("type").orEmpty(),
+                                currency = doc.getString("currency") ?: "Silver",
+                                amount = doc.getLong("amount") ?: 0L,
+                                description = doc.getString("description") ?: "",
                                 timestamp = doc.getDate("timestamp")?.time ?: System.currentTimeMillis()
                             )
-                        } catch (e: Exception) { null }
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
+
+                    val list = buildHistoryRows(entries)
                     tvEmpty.visibility = View.GONE
                     historyAdapter.submitList(list)
                 }
@@ -181,6 +199,259 @@ class SettingsActivity : AppCompatActivity() {
                 tvEmpty.text = getString(R.string.settings_history_load_failed)
                 tvEmpty.visibility = View.VISIBLE
             }
+    }
+
+    private fun buildHistoryRows(entries: List<TransactionEntry>): List<SilverHistory> {
+        if (entries.isEmpty()) return emptyList()
+
+        val rows = mutableListOf<SilverHistory>()
+        var i = 0
+
+        while (i < entries.size) {
+            val entry = entries[i]
+            val mass = parseMassUse(entry)
+
+            if (mass != null) {
+                var j = i
+                var lastTimestamp = entry.timestamp
+                var sumAmount = 0L
+                var sumPages = 0
+                var interrupted = false
+
+                while (j < entries.size) {
+                    val current = entries[j]
+                    val currentMass = parseMassUse(current) ?: break
+                    if (currentMass.tier != mass.tier || current.currency != entry.currency) break
+                    if (j > i && abs(lastTimestamp - current.timestamp) > 10 * 60 * 1000L) break
+
+                    sumAmount += current.amount
+                    sumPages += currentMass.pages
+                    lastTimestamp = current.timestamp
+                    j++
+                }
+
+                val maybeStatus = entries.getOrNull(j)
+                if (maybeStatus != null && maybeStatus.type == "MASS_SESSION_INTERRUPTED") {
+                    interrupted = true
+                    j += 1
+                }
+
+                val modeLabel = tierToModeLabel(mass.tier)
+                val currencyLabel = currencyToLabel(entry.currency, mass.tier)
+                val baseSubtitle = getString(
+                    R.string.settings_history_bulk_subtitle_format,
+                    modeLabel,
+                    currencyLabel,
+                    sumPages
+                )
+                val subtitle = if (interrupted) {
+                    baseSubtitle + getString(R.string.settings_history_bulk_interrupted_suffix)
+                } else {
+                    baseSubtitle
+                }
+
+                rows += SilverHistory(
+                    id = "mass_${entry.id}",
+                    title = getString(R.string.settings_history_type_manga_batch),
+                    subtitle = subtitle,
+                    timestamp = entry.timestamp,
+                    amountText = if (interrupted) {
+                        getString(R.string.settings_history_amount_status_stopped)
+                    } else {
+                        formatAmount(sumAmount, entry.currency)
+                    },
+                    amountKind = if (interrupted) AmountKind.NEUTRAL else amountKindFromAmount(sumAmount)
+                )
+                i = j
+                continue
+            }
+
+            rows += mapSingleEntry(entry)
+            i++
+        }
+
+        return rows
+    }
+
+    private fun mapSingleEntry(entry: TransactionEntry): SilverHistory {
+        val desc = entry.description
+        val currencyLabel = currencyToLabel(entry.currency, extractTier(desc))
+
+        if (entry.type == "MASS_SESSION_INTERRUPTED") {
+            val interruptedRegex = Regex(".*\\((\\d+)/(\\d+) pages\\) \\[([A-Z]+)]")
+            val match = interruptedRegex.find(desc)
+            val done = match?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+            val total = match?.groupValues?.getOrNull(2)?.toIntOrNull() ?: 0
+            val mode = tierToModeLabel(match?.groupValues?.getOrNull(3).orEmpty())
+            val subtitle = if (total > 0) {
+                getString(R.string.settings_history_bulk_subtitle_format, mode, currencyLabel, total) +
+                        getString(R.string.settings_history_bulk_interrupted_suffix)
+            } else {
+                getString(R.string.settings_history_subtitle_format, mode, currencyLabel) +
+                        getString(R.string.settings_history_bulk_interrupted_suffix)
+            }
+            return SilverHistory(
+                id = entry.id,
+                title = getString(R.string.settings_history_type_manga_batch),
+                subtitle = subtitle,
+                timestamp = entry.timestamp,
+                amountText = getString(R.string.settings_history_amount_status_stopped),
+                amountKind = AmountKind.NEUTRAL
+            )
+        }
+
+        if (entry.type == "USE_SILVER_FOR_VN_TOPUP" || desc.startsWith("VN top-up")) {
+            val pkgMatch = Regex("VN top-up\\s+([A-Z]+)\\s+\\(\\+(\\d+) chars\\)").find(desc)
+            val packageId = pkgMatch?.groupValues?.getOrNull(1).orEmpty()
+            val charCount = pkgMatch?.groupValues?.getOrNull(2)?.toIntOrNull()
+            val pkgLabel = when {
+                charCount != null -> String.format("%,d자", charCount)
+                packageId == "SMALL" -> "5,000자"
+                packageId == "MEDIUM" -> "10,000자"
+                packageId == "LARGE" -> "50,000자"
+                else -> "-"
+            }
+            val subtitle = getString(R.string.settings_history_package_subtitle_format, pkgLabel, currencyLabel)
+            return SilverHistory(
+                id = entry.id,
+                title = getString(R.string.settings_history_type_vn_topup),
+                subtitle = subtitle,
+                timestamp = entry.timestamp,
+                amountText = formatAmount(entry.amount, entry.currency),
+                amountKind = amountKindFromAmount(entry.amount)
+            )
+        }
+
+        if (entry.type == "USE_VN_CHARS") {
+            val subtitle = getString(R.string.settings_history_chars_subtitle_format, abs(entry.amount), currencyLabel)
+            return SilverHistory(
+                id = entry.id,
+                title = getString(R.string.settings_history_type_vn_fast),
+                subtitle = subtitle,
+                timestamp = entry.timestamp,
+                amountText = formatAmount(entry.amount, entry.currency),
+                amountKind = amountKindFromAmount(entry.amount)
+            )
+        }
+
+        if (entry.type == "CHARGE") {
+            val subtitle = getString(R.string.settings_history_subtitle_format, "-", currencyLabel)
+            return SilverHistory(
+                id = entry.id,
+                title = getString(R.string.settings_history_type_charge),
+                subtitle = subtitle,
+                timestamp = entry.timestamp,
+                amountText = formatAmount(entry.amount, entry.currency),
+                amountKind = amountKindFromAmount(entry.amount)
+            )
+        }
+
+        if (entry.type == "REFUND") {
+            val subtitle = getString(R.string.settings_history_subtitle_format, "-", currencyLabel)
+            return SilverHistory(
+                id = entry.id,
+                title = getString(R.string.settings_history_type_refund),
+                subtitle = subtitle,
+                timestamp = entry.timestamp,
+                amountText = formatAmount(entry.amount, entry.currency),
+                amountKind = amountKindFromAmount(entry.amount)
+            )
+        }
+
+        val screenMatch = Regex("Screen Translation(?: \\(([^)]+)\\))? \\[([A-Z]+)]").find(desc)
+        if (screenMatch != null) {
+            val modeSource = screenMatch.groupValues.getOrNull(1).orEmpty()
+            val modeTitle = when (modeSource.uppercase()) {
+                "AUTO" -> getString(R.string.settings_history_type_screen_auto)
+                "INSTANT", "MANUAL" -> getString(R.string.settings_history_type_screen_manual)
+                else -> getString(R.string.settings_history_type_screen)
+            }
+            val mode = tierToModeLabel(screenMatch.groupValues.getOrNull(2).orEmpty())
+            val subtitle = getString(R.string.settings_history_subtitle_format, mode, currencyLabel)
+            return SilverHistory(
+                id = entry.id,
+                title = modeTitle,
+                subtitle = subtitle,
+                timestamp = entry.timestamp,
+                amountText = formatAmount(entry.amount, entry.currency),
+                amountKind = amountKindFromAmount(entry.amount)
+            )
+        }
+
+        val novelMatch = Regex("Novel Translation \\((\\d+) chars, ([^)]+)\\)").find(desc)
+        if (novelMatch != null) {
+            val modelName = novelMatch.groupValues.getOrNull(2).orEmpty().lowercase()
+            val mode = if (modelName.contains("pro")) getString(R.string.model_mode_precise) else getString(R.string.model_mode_balanced)
+            val subtitle = getString(R.string.settings_history_subtitle_format, mode, currencyLabel)
+            return SilverHistory(
+                id = entry.id,
+                title = getString(R.string.settings_history_type_novel),
+                subtitle = subtitle,
+                timestamp = entry.timestamp,
+                amountText = formatAmount(entry.amount, entry.currency),
+                amountKind = amountKindFromAmount(entry.amount)
+            )
+        }
+
+        val subtitle = getString(R.string.settings_history_subtitle_format, "-", currencyLabel)
+        return SilverHistory(
+            id = entry.id,
+            title = if (desc.isNotBlank()) desc else getString(R.string.settings_history_type_unknown),
+            subtitle = subtitle,
+            timestamp = entry.timestamp,
+            amountText = formatAmount(entry.amount, entry.currency),
+            amountKind = if (entry.amount == 0L) AmountKind.NEUTRAL else amountKindFromAmount(entry.amount)
+        )
+    }
+
+    private fun parseMassUse(entry: TransactionEntry): ParsedMassUse? {
+        val match = Regex("Manga(?: Batch)? Translation \\((\\d+) pages\\) \\[([A-Z]+)]").find(entry.description)
+            ?: return null
+        val pages = match.groupValues.getOrNull(1)?.toIntOrNull() ?: return null
+        val tier = match.groupValues.getOrNull(2).orEmpty()
+        return ParsedMassUse(pages = pages, tier = tier)
+    }
+
+    private fun extractTier(description: String): String {
+        return Regex("\\[([A-Z]+)]").find(description)?.groupValues?.getOrNull(1).orEmpty()
+    }
+
+    private fun tierToModeLabel(tier: String): String {
+        return when (tier.uppercase()) {
+            "STANDARD" -> getString(R.string.model_mode_standard)
+            "ADVANCED" -> getString(R.string.model_mode_balanced)
+            "PRO" -> getString(R.string.model_mode_precise)
+            else -> "-"
+        }
+    }
+
+    private fun currencyToLabel(currency: String, tier: String = ""): String {
+        return when (currency.uppercase()) {
+            "SILVER" -> getString(R.string.settings_history_currency_silver)
+            "GOLD" -> getString(R.string.settings_history_currency_gold)
+            "VN_CHARS" -> getString(R.string.settings_history_currency_vn_chars)
+            else -> {
+                if (tier.uppercase() == "STANDARD") getString(R.string.settings_history_currency_free)
+                else currency
+            }
+        }
+    }
+
+    private fun formatAmount(amount: Long, currency: String): String {
+        if (amount == 0L) return getString(R.string.settings_history_amount_status_info)
+        return when (currency.uppercase()) {
+            "GOLD" -> getString(R.string.settings_history_amount_gold_format, amount)
+            "VN_CHARS" -> getString(R.string.settings_history_amount_chars_format, amount)
+            else -> getString(R.string.settings_history_amount_silver_format, amount)
+        }
+    }
+
+    private fun amountKindFromAmount(amount: Long): AmountKind {
+        return when {
+            amount > 0 -> AmountKind.POSITIVE
+            amount < 0 -> AmountKind.NEGATIVE
+            else -> AmountKind.NEUTRAL
+        }
     }
 
     private fun checkExportPermission() {
