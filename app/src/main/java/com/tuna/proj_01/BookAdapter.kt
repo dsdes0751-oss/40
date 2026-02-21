@@ -50,17 +50,17 @@ class BookAdapter(
         return BookViewHolder(view)
     }
 
-    @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: BookViewHolder, position: Int) {
         val book = getItem(position)
+        val context = holder.itemView.context
 
         holder.tvTitle.text = book.title
-        holder.tvCount.text = "${book.pageCount} Pages"
+        holder.tvCount.text = context.getString(R.string.book_pages_format, book.pageCount)
 
         holder.tvStatus?.let { tv ->
             if (book.lastReadIndex == 0 && !book.isCompleted) {
                 tv.visibility = View.VISIBLE
-                tv.text = "New"
+                tv.text = context.getString(R.string.book_new_badge)
                 tv.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.status_new_badge_text))
             } else {
                 tv.visibility = View.GONE

@@ -22,8 +22,8 @@ object TranslationWorkState {
 
     fun runningTaskName(context: Context): String? {
         return when {
-            isMassRunning(context) -> "대량번역"
-            isNovelRunning(context) -> "소설번역"
+            isMassRunning(context) -> context.getString(R.string.translation_task_mass)
+            isNovelRunning(context) -> context.getString(R.string.translation_task_novel)
             else -> null
         }
     }

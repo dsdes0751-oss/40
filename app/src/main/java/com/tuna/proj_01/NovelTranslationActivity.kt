@@ -11,14 +11,21 @@ import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlin.math.floor
 
-class NovelTranslationActivity : AppCompatActivity() {
+class NovelTranslationActivity : LocalizedActivity() {
+    companion object {
+        private const val PREF_APP = "app_prefs"
+        private const val KEY_NOVEL_TARGET_LANG_CODE = "novel_target_lang_code"
+    }
 
     private data class TargetLangOption(
         val label: String,
@@ -32,6 +39,7 @@ class NovelTranslationActivity : AppCompatActivity() {
     private lateinit var spinnerTargetLang: MaterialAutoCompleteTextView
     private lateinit var btnNavMain: Button
     private lateinit var btnNavLibrary: Button
+    private var selectedNovelTargetLangCode: String = "KO"
 
     private val modelLabels by lazy {
         listOf(
@@ -129,9 +137,23 @@ class NovelTranslationActivity : AppCompatActivity() {
         spinnerModelTier.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, modelLabels))
         spinnerModelTier.setText(modelLabels.first(), false)
 
+        val prefs = getSharedPreferences(PREF_APP, MODE_PRIVATE)
         val targetLabels = targetLangOptions.map { it.label }
         spinnerTargetLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, targetLabels))
-        spinnerTargetLang.setText(targetLabels.first(), false)
+        selectedNovelTargetLangCode = resolveSavedTargetLangCode(
+            raw = prefs.getString(KEY_NOVEL_TARGET_LANG_CODE, null),
+            fallback = targetLangOptions.first().code
+        )
+        val initialTarget = targetLangOptions.firstOrNull { it.code == selectedNovelTargetLangCode }
+            ?: targetLangOptions.first()
+        spinnerTargetLang.setText(initialTarget.label, false)
+        spinnerTargetLang.setOnItemClickListener { _, _, position, _ ->
+            val selected = targetLangOptions.getOrNull(position)
+                ?: targetLangOptions.firstOrNull { it.label == spinnerTargetLang.text?.toString().orEmpty() }
+                ?: targetLangOptions.first()
+            selectedNovelTargetLangCode = selected.code
+            prefs.edit().putString(KEY_NOVEL_TARGET_LANG_CODE, selectedNovelTargetLangCode).apply()
+        }
     }
 
     private fun showCostDialog(source: String, targetLangCode: String, modelTier: String, requiredCoin: Long) {
@@ -145,19 +167,21 @@ class NovelTranslationActivity : AppCompatActivity() {
                 )
             )
             .setPositiveButton(getString(R.string.novel_translation_use_silver)) { _, _ ->
-                startTranslationInBackground(source, targetLangCode, modelTier)
+                startTranslationInBackground(source, targetLangCode, modelTier, requiredCoin)
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(R.string.common_cancel, null)
             .show()
     }
 
     private fun startTranslationInBackground(
         source: String,
         targetLangCode: String,
-        modelTier: String
+        modelTier: String,
+        requiredCoin: Long
     ) {
         if (TranslationWorkState.isAnyTranslationRunning(this)) {
-            val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
+            val runningTask = TranslationWorkState.runningTaskName(this)
+                ?: getString(R.string.translation_running_other_task)
             Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
             return
         }
@@ -165,15 +189,66 @@ class NovelTranslationActivity : AppCompatActivity() {
         progressBar.visibility = View.VISIBLE
         btnComplete.isEnabled = false
 
-        val intent = Intent(this, NovelTranslationService::class.java).apply {
-            action = NovelTranslationService.ACTION_START
-            putExtra(NovelTranslationService.EXTRA_TEXT, source)
-            putExtra(NovelTranslationService.EXTRA_TARGET_LANG, targetLangCode)
-            putExtra(NovelTranslationService.EXTRA_MODEL_TIER, modelTier)
-        }
+        lifecycleScope.launch {
+            val user = FirebaseAuth.getInstance().currentUser
+            if (user == null) {
+                progressBar.visibility = View.GONE
+                btnComplete.isEnabled = true
+                Toast.makeText(
+                    this@NovelTranslationActivity,
+                    getString(R.string.novel_translation_login_needed),
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
 
-        ContextCompat.startForegroundService(this, intent)
-        Toast.makeText(this, getString(R.string.novel_translation_started_background), Toast.LENGTH_LONG).show()
+            val currentSilver = try {
+                val snapshot = FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(user.uid)
+                    .get()
+                    .await()
+                snapshot.getLong("current_balance") ?: 0L
+            } catch (_: Exception) {
+                null
+            }
+
+            if (currentSilver == null) {
+                progressBar.visibility = View.GONE
+                btnComplete.isEnabled = true
+                Toast.makeText(
+                    this@NovelTranslationActivity,
+                    getString(R.string.novel_translation_balance_check_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            if (currentSilver < requiredCoin) {
+                progressBar.visibility = View.GONE
+                btnComplete.isEnabled = true
+                Toast.makeText(
+                    this@NovelTranslationActivity,
+                    getString(R.string.novel_translation_insufficient_silver_detail, requiredCoin, currentSilver),
+                    Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+
+            val intent = Intent(this@NovelTranslationActivity, NovelTranslationService::class.java).apply {
+                action = NovelTranslationService.ACTION_START
+                putExtra(NovelTranslationService.EXTRA_TEXT, source)
+                putExtra(NovelTranslationService.EXTRA_TARGET_LANG, targetLangCode)
+                putExtra(NovelTranslationService.EXTRA_MODEL_TIER, modelTier)
+            }
+
+            ContextCompat.startForegroundService(this@NovelTranslationActivity, intent)
+            Toast.makeText(
+                this@NovelTranslationActivity,
+                getString(R.string.novel_translation_started_background),
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun selectedModelTier(): String {
@@ -182,8 +257,7 @@ class NovelTranslationActivity : AppCompatActivity() {
     }
 
     private fun selectedTargetLangCode(): String {
-        val selected = spinnerTargetLang.text.toString()
-        return targetLangOptions.firstOrNull { it.label == selected }?.code ?: "KO"
+        return selectedNovelTargetLangCode
     }
 
     private fun calculateRequiredSilver(charCount: Int, modelTier: String): Long {
@@ -219,4 +293,16 @@ class NovelTranslationActivity : AppCompatActivity() {
             null
         }
     }
+
+    private fun resolveSavedTargetLangCode(raw: String?, fallback: String): String {
+        if (raw.isNullOrBlank()) return fallback
+        val normalized = raw.trim()
+        targetLangOptions.firstOrNull { it.code.equals(normalized, ignoreCase = true) }?.let { return it.code }
+        targetLangOptions.firstOrNull { it.label == normalized }?.let { return it.code }
+        return fallback
+    }
 }
+
+
+
+

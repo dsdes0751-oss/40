@@ -1,4 +1,4 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
 import android.content.Context
 import android.content.Intent
@@ -9,7 +9,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -19,7 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
 import java.io.File
 
-class LibraryActivity : AppCompatActivity() {
+class LibraryActivity : LocalizedActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -40,7 +39,7 @@ class LibraryActivity : AppCompatActivity() {
             onBookmarkClick = { book -> viewModel.toggleBookmark(book) },
             onDeleteLongPress = { book ->
                 if (book.isBookmarked) {
-                    Toast.makeText(this, "Remove bookmark before deleting.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.viewer_delete_block_bookmarked), Toast.LENGTH_SHORT).show()
                 } else {
                     showDeleteConfirmDialog(book)
                 }
@@ -102,19 +101,22 @@ class LibraryActivity : AppCompatActivity() {
             intent.putExtra("start_position", book.lastReadIndex)
             startActivity(intent)
         } else {
-            Toast.makeText(this, "This book has no readable content.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.library_no_readable_content), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun showDeleteConfirmDialog(book: Book) {
         AlertDialog.Builder(this)
-            .setTitle("Delete book")
-            .setMessage("Delete '${book.title}'?")
-            .setPositiveButton("Delete") { _, _ ->
+            .setTitle(R.string.library_delete_book_title)
+            .setMessage(getString(R.string.library_delete_book_message, book.title))
+            .setPositiveButton(R.string.common_delete) { _, _ ->
                 viewModel.deleteBook(book)
-                Toast.makeText(this, "Delete되었습니다.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.library_delete_done), Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.common_cancel, null)
             .show()
     }
 }
+
+
+

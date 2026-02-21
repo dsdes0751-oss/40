@@ -217,7 +217,12 @@ class ScreenTranslationService : Service() {
                 val newLang = intent.getStringExtra("sourceLang")
                 if (newLang != null) {
                     sourceLang = newLang
-                    showCustomToast("踰덉뿭 ?몄뼱 蹂寃? $sourceLang")
+                    showCustomToast(
+                        getString(
+                            R.string.screen_toast_source_lang_changed_format,
+                            displayLanguageName(sourceLang)
+                        )
+                    )
                 }
                 return START_NOT_STICKY
             }
@@ -225,13 +230,8 @@ class ScreenTranslationService : Service() {
                 val newModel = intent.getStringExtra("modelTier")
                 if (newModel != null) {
                     currentModelTier = newModel
-                    val modelName = when(currentModelTier) {
-                        "STANDARD" -> "?쇰컲 踰덉뿭 (臾대즺)"
-                        "ADVANCED" -> "怨좉툒 踰덉뿭 (?ㅻ쾭)"
-                        "PRO" -> "?꾨줈 踰덉뿭 (怨⑤뱶)"
-                        else -> "?????놁쓬"
-                    }
-                    showCustomToast("紐⑤뜽 蹂寃? $modelName")
+                    val modelName = displayModelName(currentModelTier)
+                    showCustomToast(getString(R.string.screen_toast_model_changed_format, modelName))
                 }
                 return START_NOT_STICKY
             }
@@ -239,7 +239,12 @@ class ScreenTranslationService : Service() {
                 val newTargetLang = intent.getStringExtra("targetLang")
                 if (newTargetLang != null) {
                     targetLang = newTargetLang
-                    showCustomToast("踰덉뿭 ????몄뼱 蹂寃? $targetLang")
+                    showCustomToast(
+                        getString(
+                            R.string.screen_toast_target_lang_changed_format,
+                            displayLanguageName(targetLang)
+                        )
+                    )
                 }
                 return START_NOT_STICKY
             }
@@ -309,7 +314,7 @@ class ScreenTranslationService : Service() {
             hideLoadingOverlay()
             removeCaptureAreaOverlay(keepFloatingButton = false)
 
-            showCustomToast("?붾㈃ 踰덉뿭 ?쒕퉬?ㅺ? 醫낅즺?섏뿀?듬땲??")
+            showCustomToast(getString(R.string.screen_toast_service_stopped))
 
             serviceScope.launch {
                 delay(2000)
@@ -382,7 +387,7 @@ class ScreenTranslationService : Service() {
             }
 
             loadingTextView = TextView(this).apply {
-                text = "?띿뒪??遺꾩꽍 以?.."
+                text = getString(R.string.screen_loading_analyzing)
                 setTextColor(Color.WHITE)
                 textSize = 14f
                 gravity = Gravity.CENTER
@@ -603,7 +608,7 @@ class ScreenTranslationService : Service() {
             val btnConfirm = controlsView.findViewById<Button>(R.id.btn_confirm_area)
             val cbFix = controlsView.findViewById<CheckBox>(R.id.cb_fix_area)
 
-            btnConfirm.text = "?곸뿭 ?ㅼ젙 ?꾨즺"
+            btnConfirm.text = getString(R.string.screen_confirm_area_done)
             val prefs = getSharedPreferences("screen_trans_prefs", Context.MODE_PRIVATE)
             cbFix.isChecked = prefs.getBoolean("is_fixed_mode", false)
 
@@ -664,10 +669,10 @@ class ScreenTranslationService : Service() {
                         startCaptureWithCheck()
                     } else {
                         floatingButton.visibility = View.VISIBLE
-                        showCustomToast("?곸뿭??怨좎젙?섏뿀?듬땲?? ?뗫낫湲곕? ?뚮윭 踰덉뿭?섏꽭??")
+                        showCustomToast(getString(R.string.screen_toast_area_fixed))
                     }
                 } else {
-                    showCustomToast("?곸뿭?????ш쾶 吏?뺥빐二쇱꽭??")
+                    showCustomToast(getString(R.string.screen_toast_area_select_larger))
                 }
             }
 
@@ -679,7 +684,7 @@ class ScreenTranslationService : Service() {
         } catch (e: Exception) {
             e.printStackTrace()
             removeCaptureAreaOverlay(keepFloatingButton = true)
-            showCustomToast("?ㅻ쾭?덉씠 ?ㅽ뻾 ?ㅻ쪟")
+            showCustomToast(getString(R.string.screen_toast_overlay_error))
         }
     }
 
@@ -821,7 +826,7 @@ class ScreenTranslationService : Service() {
 
     private fun performSingleClickAction() {
         if (resultCode == 0 || resultData == null) {
-            showCustomToast("沅뚰븳 ?ㅻ쪟: ?깆쓣 ?ㅼ떆 ?ㅽ뻾?댁＜?몄슂")
+            showCustomToast(getString(R.string.screen_toast_permission_error))
             return
         }
         loadCaptureSettings()
@@ -858,7 +863,7 @@ class ScreenTranslationService : Service() {
         val rect = targetCaptureRect
         if (rect == null) {
             Log.w(TAG, "Auto monitor start blocked: targetCaptureRect is null")
-            showCustomToast("癒쇱? 踰덉뿭 ?곸뿭??吏?뺥빐二쇱꽭??")
+            showCustomToast(getString(R.string.screen_toast_select_area_first))
             return
         }
 
@@ -875,13 +880,13 @@ class ScreenTranslationService : Service() {
             isAutoTranslateEnabled = false
             autoTranslateMonitor = null
             Log.e(TAG, "Auto monitor start failed")
-            showCustomToast("?먮룞踰덉뿭 媛먯떆 ?쒖옉 ?ㅽ뙣")
+            showCustomToast(getString(R.string.screen_auto_monitor_start_failed))
             return
         }
 
         autoTranslateMonitor = monitor
         if (showToast) {
-            showCustomToast("자동번역 시작: 영역 변화 감지 중")
+            showCustomToast(getString(R.string.screen_auto_monitor_started))
         }
     }
 
@@ -891,7 +896,7 @@ class ScreenTranslationService : Service() {
         isAutoTriggerPending = false
         autoTranslateMonitor?.stop()
         autoTranslateMonitor = null
-        if (showToast) showCustomToast("?먮룞踰덉뿭??醫낅즺?섏뿀?듬땲??")
+        if (showToast) showCustomToast(getString(R.string.screen_auto_monitor_stopped))
     }
 
     private fun triggerTranslationFromAuto() {
@@ -1186,7 +1191,7 @@ class ScreenTranslationService : Service() {
             val uid = auth.currentUser?.uid
             if (uid == null) {
                 Log.w(TAG, "Capture blocked: user is not logged in")
-                showCustomToast("濡쒓렇?몄씠 ?꾩슂?⑸땲??")
+                showCustomToast(getString(R.string.main_error_login_required))
                 isAutoTriggerPending = false
                 isCaptureInProgress = false
                 restoreOverlays()
@@ -1202,7 +1207,7 @@ class ScreenTranslationService : Service() {
 
                 if (!hasGold) {
                     Log.w(TAG, "Capture blocked: insufficient gold for PRO tier")
-                    showCustomToast("怨⑤뱶媛 遺議깊빀?덈떎! 異⑹쟾?댁＜?몄슂.")
+                    showCustomToast(getString(R.string.screen_toast_insufficient_gold))
                     isAutoTriggerPending = false
                     isCaptureInProgress = false
                     restoreOverlays()
@@ -1216,7 +1221,7 @@ class ScreenTranslationService : Service() {
 
                 if (!hasSilver) {
                     Log.w(TAG, "Capture blocked: insufficient silver for ADVANCED tier")
-                    showCustomToast("?ㅻ쾭媛 遺議깊빀?덈떎! 異⑹쟾?댁＜?몄슂.")
+                    showCustomToast(getString(R.string.screen_toast_insufficient_silver))
                     isAutoTriggerPending = false
                     isCaptureInProgress = false
                     restoreOverlays()
@@ -1276,7 +1281,7 @@ class ScreenTranslationService : Service() {
             val projection = ensureMediaProjection()
             if (projection == null) {
                 Log.e(TAG, "Capture blocked: mediaProjection is null")
-                showCustomToast("罹≪쿂 沅뚰븳???놁뒿?덈떎.")
+                showCustomToast(getString(R.string.screen_toast_capture_permission_missing))
                 isCaptureInProgress = false
                 restoreOverlays()
                 return
@@ -1351,7 +1356,7 @@ class ScreenTranslationService : Service() {
                     stopCaptureResource()
                     if (finalBitmap != null) runOCR(finalBitmap) else {
                         Log.e(TAG, "finalBitmap is null")
-                        showCustomToast("罹≪쿂 ?곸뿭 ?ㅻ쪟")
+                        showCustomToast(getString(R.string.screen_toast_capture_area_error))
                         restoreOverlays()
                     }
                 }
@@ -1425,7 +1430,7 @@ class ScreenTranslationService : Service() {
                 if (detectedCharCount >= maxCharCount) {
                     Log.w(TAG, "OCR blocked: max char exceeded ($detectedCharCount >= $maxCharCount)")
                     showCustomToast(
-                        "媛먯???湲?먭? ?덈Т 留롮븘 踰덉뿭?????놁뒿?덈떎. (媛먯?: ${detectedCharCount}??/ ?쒗븳: ${maxCharCount}??"
+                        getString(R.string.screen_toast_too_many_chars_format, detectedCharCount, maxCharCount)
                     )
                     isCaptureInProgress = false
                     restoreOverlays()
@@ -1434,13 +1439,13 @@ class ScreenTranslationService : Service() {
                     processTranslationWithAnimation(bitmap)
                 } else {
                     Log.w(TAG, "OCR produced no blocks")
-                    showCustomToast("?띿뒪?몃? 李얠? 紐삵뻽?듬땲??")
+                    showCustomToast(getString(R.string.screen_toast_text_not_found))
                     isCaptureInProgress = false
                     restoreOverlays()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "OCR failed", e)
-                showCustomToast("OCR ?ㅽ뙣")
+                showCustomToast(getString(R.string.screen_toast_ocr_failed))
                 isCaptureInProgress = false
                 restoreOverlays()
             } finally {
@@ -1514,7 +1519,7 @@ class ScreenTranslationService : Service() {
 
             if (translationDeferred.isActive) {
                 showLoadingOverlay()
-                updateLoadingText("踰덉뿭以?..")
+                updateLoadingText(getString(R.string.screen_loading_translating))
             }
             val isSuccess = translationDeferred.await()
             hideLoadingOverlay()
@@ -1526,7 +1531,7 @@ class ScreenTranslationService : Service() {
                 Log.w(TAG, "Translation result: failed")
                 isCaptureInProgress = false
                 if (translationMode != TranslationMode.VN_FAST) {
-                    showCustomToast("踰덉뿭 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.")
+                    showCustomToast(getString(R.string.screen_toast_translation_error))
                 }
                 restoreOverlays()
             }
@@ -1571,7 +1576,7 @@ class ScreenTranslationService : Service() {
                     val result = translator.translate(block.originalText).await()
                     block.translatedText = result
                 } catch (e: Exception) {
-                    block.translatedText = "踰덉뿭 ?ㅽ뙣"
+                    block.translatedText = getString(R.string.screen_toast_translation_failed)
                 }
             }
         } catch (e: Exception) {
@@ -1588,6 +1593,25 @@ class ScreenTranslationService : Service() {
             "Chinese" -> TranslateLanguage.CHINESE
             "Korean" -> TranslateLanguage.KOREAN
             else -> TranslateLanguage.JAPANESE
+        }
+    }
+
+    private fun displayLanguageName(lang: String): String {
+        return when (lang) {
+            "Japanese" -> getString(R.string.language_name_japanese)
+            "English" -> getString(R.string.language_name_english)
+            "Chinese" -> getString(R.string.language_name_chinese)
+            "Korean" -> getString(R.string.language_name_korean)
+            else -> lang
+        }
+    }
+
+    private fun displayModelName(tier: String): String {
+        return when (tier) {
+            "STANDARD" -> getString(R.string.model_mode_standard)
+            "ADVANCED" -> getString(R.string.model_mode_balanced)
+            "PRO" -> getString(R.string.model_mode_precise)
+            else -> getString(R.string.common_unknown)
         }
     }
 
@@ -1612,7 +1636,11 @@ class ScreenTranslationService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel("SCREEN_TRANS_CHANNEL", "Screen Translation", NotificationManager.IMPORTANCE_LOW)
+            val serviceChannel = NotificationChannel(
+                "SCREEN_TRANS_CHANNEL",
+                getString(R.string.screen_notification_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
         }
@@ -1620,8 +1648,8 @@ class ScreenTranslationService : Service() {
 
     private fun createNotification(): Notification {
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, "SCREEN_TRANS_CHANNEL") else Notification.Builder(this)
-        return builder.setContentTitle("화면 번역 실행 중")
-            .setContentText("紐⑤뜽: $currentModelTier")
+        return builder.setContentTitle(getString(R.string.screen_notification_title))
+            .setContentText(getString(R.string.screen_notification_content_format, displayModelName(currentModelTier)))
             .setSmallIcon(android.R.drawable.ic_menu_search).build()
     }
 

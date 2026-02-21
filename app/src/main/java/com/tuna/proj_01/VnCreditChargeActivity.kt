@@ -6,13 +6,12 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.launch
 
-class VnCreditChargeActivity : AppCompatActivity() {
+class VnCreditChargeActivity : LocalizedActivity() {
 
     private data class VnPackage(
         val id: String,
@@ -87,10 +86,10 @@ class VnCreditChargeActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.vn_top_up_confirm_title)
             .setMessage(message)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
+            .setPositiveButton(R.string.common_ok) { _, _ ->
                 purchase(pkg.id)
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(R.string.common_cancel, null)
             .show()
     }
 
@@ -115,3 +114,7 @@ class VnCreditChargeActivity : AppCompatActivity() {
         }
     }
 }
+
+
+
+

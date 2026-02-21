@@ -4,9 +4,8 @@
 
     <string-array name="app_language_options">
         <item>한국어</item>
-        <item>日本語</item>
-        <item>中文</item>
-        <item>English</item>
+        <item>일본어</item>
+        <item>영어</item>
     </string-array>
 
     <string-array name="theme_options">
@@ -20,6 +19,8 @@
     <string name="common_copy">복사</string>
     <string name="common_logout">로그아웃</string>
     <string name="common_cancel">취소</string>
+    <string name="common_ok">확인</string>
+    <string name="common_retry">다시 시도</string>
     <string name="common_unknown">알 수 없음</string>
     <string name="common_question_mark">\?</string>
 
@@ -32,16 +33,24 @@
     <string name="settings_export_books">모든 책 다운로드 폴더로 내보내기</string>
     <string name="settings_other">기타 설정</string>
     <string name="settings_language">언어 설정</string>
+    <string name="settings_language_label">언어</string>
+    <string name="settings_language_restart_required_title">재시작 필요</string>
+    <string name="settings_language_restart_required_message">언어 변경을 적용하려면 앱을 다시 시작해야 합니다.</string>
+    <string name="language_name_korean">한국어</string>
+    <string name="language_name_japanese">일본어</string>
+    <string name="language_name_chinese">중국어</string>
+    <string name="language_name_english">영어</string>
     <string name="settings_theme">테마 설정</string>
     <string name="settings_send_feedback">피드백 보내기</string>
     <string name="settings_privacy_policy">개인정보처리방침</string>
     <string name="settings_version">버전 정보</string>
     <string name="settings_version_default">v1.0.0</string>
+    <string name="settings_version_name_format">v%1$s</string>
     <string name="settings_storage_permission_required">저장소 권한이 필요합니다.</string>
     <string name="settings_no_email">이메일 없음</string>
     <string name="settings_login_required">로그인 필요</string>
-    <string name="settings_silver_format">Silver: %1$d</string>
-    <string name="settings_gold_format">Gold: %1$d</string>
+    <string name="settings_silver_format">실버: %1$d</string>
+    <string name="settings_gold_format">골드: %1$d</string>
     <string name="settings_history_default">내역</string>
     <string name="settings_history_load_failed">내역을 불러오지 못했습니다.</string>
     <string name="settings_exporting_title">내보내는 중</string>
@@ -55,8 +64,8 @@
     <string name="settings_no_email_app">이메일 앱을 찾을 수 없습니다.</string>
     <string name="settings_uid_copied">UID가 복사되었습니다.</string>
     <string name="settings_guest_email_placeholder">guest@example.com</string>
-    <string name="settings_silver_default">Silver: 0</string>
-    <string name="settings_gold_default">Gold: 0</string>
+    <string name="settings_silver_default">실버: 0</string>
+    <string name="settings_gold_default">골드: 0</string>
 
     <string name="greeting_format">반가워요, %s님</string>
     <string name="greeting_guest">반가워요, 게스트님</string>
@@ -82,6 +91,9 @@
     <string name="main_mode_balanced">번역 모드: 균형 (실버 1/회)</string>
     <string name="main_mode_precise">번역 모드: 정밀 (골드 1/회)</string>
     <string name="main_mode_cost_guide">빠름: 무료 · 균형: 실버 1회 차감 · 정밀: 골드 1회 차감</string>
+    <string name="standard_langpack_downloading">빠름 모드 언어팩을 다운로드 중입니다. 시간이 걸릴 수 있습니다.</string>
+    <string name="standard_langpack_download_complete">빠름 모드 언어팩 다운로드가 완료되었습니다.</string>
+    <string name="standard_langpack_download_failed">언어팩 다운로드에 실패했습니다. 번역 시 다시 시도됩니다.</string>
     <string name="source_language_label">원본 언어</string>
     <string name="target_language_label">번역 언어</string>
     <string name="model_sheet_title">번역 모드 선택</string>
@@ -99,7 +111,37 @@
     <string name="model_balanced_notice_message">대량 이미지 번역에서는 정밀 모드가 더 자연스러운 결과를 낼 수 있습니다.</string>
     <string name="dialog_never_show_again">다시 보지 않기</string>
     <string name="main_status_idle">대기 중</string>
+    <string name="main_status_novel_running">소설번역중</string>
+    <string name="main_status_stopping">중단 중...</string>
+    <string name="main_status_translating">번역 중</string>
+    <string name="main_status_file_selection_canceled">파일 선택이 취소되었습니다.</string>
+    <string name="main_status_done_format">완료: %1$s</string>
+    <string name="main_status_done_short">완료</string>
+    <string name="main_status_error">오류</string>
+    <string name="main_progress_message_format">%1$s\n(%2$d / %3$d)\n알림에서 중단할 수 있습니다.</string>
     <string name="main_stop">작업 중단</string>
+    <string name="main_gold_balance_format">%1$d G</string>
+    <string name="main_error_network_required">인터넷 연결이 필요합니다.</string>
+    <string name="main_error_file_size_limit">선택한 이미지가 모두 %1$dMB를 초과했습니다.</string>
+    <string name="main_error_file_size_rejected">%1$d개의 이미지가 %2$dMB 제한을 초과해 제외되었습니다.</string>
+    <string name="main_notification_permission_title">알림 권한 필요</string>
+    <string name="main_notification_permission_rationale">번역 진행 상황 확인을 위해 알림 권한이 필요합니다.</string>
+    <string name="main_notification_permission_denied_message">알림 권한이 거부되어 번역 진행 상태를 표시할 수 없습니다.\n\n설정에서 알림 권한을 허용해주세요.</string>
+    <string name="main_notification_permission_missing_hint">알림 권한이 없어 백그라운드 진행 상태가 표시되지 않을 수 있습니다.</string>
+    <string name="main_notification_permission_granted">알림 권한이 허용되었습니다.</string>
+    <string name="main_open_settings">설정 열기</string>
+    <string name="main_google_login_missing_token">Google 로그인에 실패했습니다. ID 토큰이 없습니다.</string>
+    <string name="main_firebase_login_failed">Firebase 로그인에 실패했습니다. 다시 시도해주세요.</string>
+    <string name="main_google_login_config_error">Google 로그인 설정 오류입니다. OAuth 클라이언트/SHA-1을 확인해주세요.</string>
+    <string name="main_google_login_failed_code">Google 로그인에 실패했습니다. 코드: %1$d</string>
+    <string name="main_screen_capture_permission_denied">화면 캡처 권한이 거부되었습니다.</string>
+    <string name="main_guide_dialog_title">화면 바로번역 사용법</string>
+    <string name="main_guide_dialog_message">1. 번역 시작 버튼을 눌러주세요.\n2. 녹색 영역을 드래그해서 번역할 위치를 선택하세요.\n3. 영역 고정이 켜져 있으면 영역이 유지됩니다. 이동하려면 영역 고정을 꺼주세요.</string>
+    <string name="main_store_not_ready_title">스토어 준비 중</string>
+    <string name="main_store_not_ready_message">상품 정보를 불러오지 못했습니다.\n\nGoogle Play Console 설정을 확인해주세요.</string>
+    <string name="main_recharge_dialog_title">충전 (실버/골드)</string>
+    <string name="main_error_dialog_title">오류 발생</string>
+    <string name="main_overlay_permission_required">다른 앱 위에 표시 권한을 허용해주세요.</string>
 
     <string name="help_title">화면 번역 사용법</string>
     <string name="help_step1_title">1. 권한 허용</string>
@@ -114,8 +156,9 @@
 
     <string name="viewer_loading">번역하는 중...</string>
     <string name="viewer_error">이미지를 불러올 수 없어요</string>
-    <string name="viewer_book_title_placeholder">Book Title</string>
+    <string name="viewer_book_title_placeholder">책 제목</string>
     <string name="viewer_page_indicator_placeholder">1 / 20</string>
+    <string name="viewer_page_indicator_format">%1$d / %2$d</string>
     <string name="viewer_page_content_description">만화 페이지</string>
 
     <string name="overlay_pin_area">영역 고정</string>
@@ -130,17 +173,20 @@
     <string name="viewer_settings_cover">표지 설정</string>
     <string name="viewer_settings_hide_this_cover">이 책의 표지 숨기기</string>
     <string name="viewer_settings_hide_all_covers">모든 책의 표지 숨기기 (서재)</string>
+    <string name="viewer_settings_title">책 설정</string>
     <string name="viewer_settings_delete_current">현재 보고 있는 책 삭제</string>
     <string name="viewer_settings_delete_all">서재의 모든 책 삭제 (초기화)</string>
+    <string name="viewer_original_not_supported">현재 버전에서는 원본 보기 기능이 지원되지 않습니다.</string>
 
     <string name="history_item_content">내역 내용</string>
     <string name="history_item_date">2024.01.01 12:00</string>
     <string name="history_item_amount">+5</string>
 
-    <string name="book_new_badge">New</string>
+    <string name="book_new_badge">새 책</string>
     <string name="bookmark">북마크</string>
-    <string name="book_title_placeholder">Book Title</string>
-    <string name="book_pages_placeholder">0 Pages</string>
+    <string name="book_title_placeholder">책 제목</string>
+    <string name="book_pages_placeholder">0페이지</string>
+    <string name="book_pages_format">%1$d페이지</string>
     <string name="nav_main">메인</string>
     <string name="nav_library">서재</string>
     <string name="action_novel_translation_title">소설번역</string>
@@ -172,6 +218,8 @@
     <string name="novel_translation_notification_running">소설 번역 중... (약 1분)</string>
     <string name="novel_translation_notification_done">소설 번역 완료! %1$d 실버 차감</string>
     <string name="novel_translation_notification_failed">소설 번역에 실패했습니다.</string>
+    <string name="novel_translation_balance_check_failed">실버 잔액을 확인할 수 없습니다. 잠시 후 다시 시도해주세요.</string>
+    <string name="novel_translation_insufficient_silver_detail">실버가 부족합니다. 필요: %1$d / 보유: %2$d</string>
 
     <string-array name="novel_translation_model_options">
         <item>균형 모드 (100자당 2실버)</item>
@@ -180,14 +228,29 @@
 
     <string-array name="novel_translation_target_lang_options">
         <item>한국어</item>
-        <item>English</item>
-        <item>日本語</item>
-        <item>中文</item>
+        <item>영어</item>
+        <item>일본어</item>
+        <item>중국어</item>
     </string-array>
     <string name="novel_translation_use_gold">OK (골드 사용)</string>
     <string name="novel_translation_done">번역 완료! %1$d 실버가 차감되었습니다.</string>
     <string name="novel_translation_login_needed">로그인이 필요합니다.</string>
     <string name="translation_running_block_message">%1$s 진행 중에는 다른 번역을 시작할 수 없습니다.</string>
+    <string name="mass_status_preparing">준비 중...</string>
+    <string name="mass_status_finalizing">마무리 중...</string>
+    <string name="mass_status_checking_offline_model">오프라인 번역 모델 확인 중...</string>
+    <string name="mass_status_analyzing_positions_format">텍스트 위치 분석 중... (%1$d/%2$d)</string>
+    <string name="mass_progress_analyzing_format">텍스트 분석 중 (%1$d/%2$d)</string>
+    <string name="mass_status_translating_rendering">번역 및 렌더링 중...</string>
+    <string name="mass_progress_in_progress_format">번역 진행 중 (%1$d/%2$d - %3$d%%)</string>
+    <string name="mass_status_complete_format">번역 완료! (%1$d페이지)</string>
+    <string name="mass_complete_message_format">완료! (%1$d페이지)</string>
+    <string name="mass_skip_pages_suffix_format"> · 글자 수 초과로 건너뜀: %1$s 페이지</string>
+    <string name="mass_status_stopped">번역이 중단되었습니다.</string>
+    <string name="mass_complete_stopped_format">작업 중단 (완료: %1$d페이지)</string>
+    <string name="mass_error_prefix_format">오류: %1$s</string>
+    <string name="mass_book_title_format">대량 - %1$s</string>
+    <string name="mass_translation_failed">번역 실패</string>
     <string name="settings_history_type_screen_manual">화면 바로번역</string>
     <string name="settings_history_type_screen_auto">자동 화면번역</string>
     <string name="settings_history_type_screen">화면 번역</string>
@@ -206,6 +269,10 @@
     <string name="settings_history_bulk_subtitle_format">모드: %1$s · 재화: %2$s · 합계 %3$d장</string>
     <string name="settings_history_bulk_interrupted_suffix"> · 중단됨</string>
     <string name="settings_history_package_subtitle_format">패키지: %1$s · 재화: %2$s</string>
+    <string name="settings_history_chars_count_format">%1$,d자</string>
+    <string name="settings_history_chars_5000">5,000자</string>
+    <string name="settings_history_chars_10000">10,000자</string>
+    <string name="settings_history_chars_50000">50,000자</string>
     <string name="settings_history_chars_subtitle_format">사용 글자: %1$,d자 · 재화: %2$s</string>
     <string name="settings_history_amount_silver_format">%1$+d S</string>
     <string name="settings_history_amount_gold_format">%1$+d G</string>
@@ -216,24 +283,77 @@
     <string name="novel_viewer_export_txt">TXT 파일로 내보내기</string>
     <string name="novel_viewer_export_done">TXT 내보내기가 완료되었습니다.</string>
     <string name="novel_viewer_export_fail">TXT 내보내기에 실패했습니다.</string>
+    <string name="novel_viewer_progress_default">0%</string>
+    <string name="novel_viewer_progress_format">%1$d%%</string>
+    <string name="novel_setting_typography">타이포그래피</string>
+    <string name="novel_setting_font_size">글자 크기</string>
+    <string name="novel_setting_line_height">줄 간격</string>
+    <string name="novel_setting_letter_spacing">자간</string>
+    <string name="novel_setting_paragraph_spacing">문단 간격</string>
+    <string name="novel_setting_margins">여백</string>
+    <string name="novel_setting_margin_left">왼쪽 여백</string>
+    <string name="novel_setting_margin_right">오른쪽 여백</string>
+    <string name="novel_setting_margin_top">위 여백</string>
+    <string name="novel_setting_margin_bottom">아래 여백</string>
+    <string name="novel_setting_theme">테마</string>
+    <string name="novel_setting_brightness">밝기</string>
+    <string name="novel_setting_blue_light">블루라이트 필터</string>
+    <string name="novel_setting_immersive">몰입 모드(시스템 바 숨김)</string>
+    <string name="novel_setting_read_mode">읽기 모드</string>
+    <string name="novel_setting_orientation">화면 방향 잠금</string>
+    <string name="novel_setting_volume_keys">볼륨키 페이지 넘김</string>
+    <string name="novel_setting_export">현재 책 내보내기</string>
+    <string name="novel_setting_share">현재 책 공유</string>
+    <string name="novel_setting_delete_current">현재 책 삭제</string>
+    <string name="novel_setting_delete_all">서재 전체 삭제</string>
+    <string name="novel_settings_section_reading">화면/읽기</string>
+    <string name="novel_settings_section_display">표시</string>
+    <string name="novel_settings_section_typography">타이포그래피/여백</string>
+    <string name="novel_settings_section_data">데이터 관리</string>
+    <string name="novel_setting_value_percent">%1$d%%</string>
+    <string name="novel_setting_value_sp">%1$dsp</string>
+    <string name="novel_setting_value_dp">%1$ddp</string>
+    <string name="novel_setting_value_em">%1$.2fem</string>
+    <string name="novel_theme_light">라이트</string>
+    <string name="novel_theme_dark">다크</string>
+    <string name="novel_theme_sepia">세피아</string>
+    <string name="novel_read_mode_paged">페이지</string>
+    <string name="novel_read_mode_vertical">세로 스크롤</string>
+    <string name="novel_read_mode_horizontal">가로 스와이프</string>
+    <string name="novel_orientation_system">시스템 기본</string>
+    <string name="novel_orientation_portrait">세로 고정</string>
+    <string name="novel_orientation_landscape">가로 고정</string>
+    <string name="viewer_delete_current_title">현재 책 삭제</string>
+    <string name="viewer_delete_current_message">현재 열려있는 책을 삭제하시겠습니까?</string>
+    <string name="viewer_delete_all_title">서재 전체 삭제</string>
+    <string name="viewer_delete_all_first_confirm">북마크를 포함한 모든 책을 삭제합니다.</string>
+    <string name="viewer_delete_all_second_confirm">삭제하려면 아래에 \"삭제\"를 입력하세요.</string>
+    <string name="viewer_delete_all_keyword">삭제</string>
+    <string name="viewer_delete_all_keyword_mismatch">입력값이 일치하지 않습니다.</string>
+    <string name="viewer_delete_all_done">%1$d권을 삭제했습니다.</string>
+    <string name="viewer_delete_block_bookmarked">북마크 해제 후 삭제할 수 있습니다.</string>
+    <string name="viewer_delete_failed">삭제에 실패했습니다.</string>
+    <string name="common_delete">삭제</string>
+    <string name="common_continue">계속</string>
+    <string name="common_close">닫기</string>
 
     <string name="viewer_settings_export_current">이 책 내보내기</string>
     <string name="vn_game_translation_button">비주얼노벨/게임 번역</string>
     <string name="vn_game_translation_title">비주얼노벨/게임 번역</string>
     <string name="vn_source_lang_label">원문 언어</string>
     <string name="vn_target_lang_label">번역 언어</string>
-    <string name="vn_start_translation">Start Translation</string>
+    <string name="vn_start_translation">번역 시작</string>
     <string name="vn_credit_status_title">VN 글자 크레딧</string>
     <string name="vn_percent_format">잔여 비율: %1$d%%</string>
     <string name="vn_remaining_chars_format">남은 글자: %1$,d자</string>
     <string name="vn_top_up_button">충전하기</string>
     <string name="vn_top_up_title">VN 글자 크레딧 충전</string>
     <string name="vn_top_up_packages_title">패키지 선택</string>
-    <string name="vn_package_small_label">+5,000자 (50 Silver)</string>
-    <string name="vn_package_medium_label">+10,000자 (80 Silver)</string>
-    <string name="vn_package_large_label">+50,000자 (350 Silver)</string>
+    <string name="vn_package_small_label">+5,000자 (실버 50)</string>
+    <string name="vn_package_medium_label">+10,000자 (실버 80)</string>
+    <string name="vn_package_large_label">+50,000자 (실버 350)</string>
     <string name="vn_top_up_confirm_title">충전 확인</string>
-    <string name="vn_top_up_confirm_message">Silver %1$d를 사용해 %2$,d자를 충전할까요?</string>
+    <string name="vn_top_up_confirm_message">실버 %1$d를 사용해 %2$,d자를 충전할까요?</string>
     <string name="vn_top_up_success">충전이 완료되었습니다.</string>
     <string name="vn_error_insufficient_silver">실버가 부족합니다.</string>
     <string name="vn_error_cap_exceeded">최대 보유량(100,000자)을 초과하여 충전할 수 없습니다.</string>
@@ -241,10 +361,51 @@
     <string name="vn_overlay_permission_required">다른 앱 위에 표시 권한이 필요합니다.</string>
     <string name="vn_screen_capture_permission_denied">화면 캡처 권한이 거부되었습니다.</string>
     <string name="vn_lang_korean">한국어</string>
-    <string name="vn_lang_english">English</string>
-    <string name="vn_lang_japanese">日本語</string>
-    <string name="vn_lang_chinese">中文</string>
+    <string name="vn_lang_english">영어</string>
+    <string name="vn_lang_japanese">일본어</string>
+    <string name="vn_lang_chinese">중국어</string>
     <string name="vn_input_limit_exceeded">글자 수 제한(90자) 초과. 영역을 줄여주세요.</string>
     <string name="vn_credit_insufficient">크레딧이 부족합니다. 충전해주세요.</string>
     <string name="vn_translation_error">번역 중 오류가 발생했습니다.</string>
+    <string name="translation_running_other_task">다른 번역</string>
+    <string name="translation_task_mass">대량번역</string>
+    <string name="translation_task_novel">소설번역</string>
+    <string name="main_error_insufficient_gold_detail">골드가 부족합니다! (보유: %1$d, 필요: %2$d)</string>
+    <string name="main_error_insufficient_silver_detail">실버가 부족합니다! (보유: %1$d, 필요: %2$d)</string>
+    <string name="main_loading_check_balance">잔액 확인 중...</string>
+    <string name="main_error_login_required">로그인이 필요합니다.</string>
+    <string name="main_error_insufficient_currency_charge">%1$s가 부족합니다! (충전 필요)</string>
+    <string name="main_loading_starting_service">서비스 시작 중...</string>
+    <string name="library_no_readable_content">읽을 수 있는 콘텐츠가 없습니다.</string>
+    <string name="library_delete_book_title">책 삭제</string>
+    <string name="library_delete_book_message">%1$s 책을 삭제할까요?</string>
+    <string name="library_delete_done">삭제되었습니다.</string>
+    <string name="novel_title_with_timestamp">소설 - %1$s</string>
+    <string name="screen_auto_monitor_start_failed">자동번역 감시 시작에 실패했습니다.</string>
+    <string name="screen_auto_monitor_started">자동번역 시작: 영역 변화 감지 중</string>
+    <string name="screen_auto_monitor_stopped">자동번역이 종료되었습니다.</string>
+    <string name="screen_toast_source_lang_changed_format">번역 원본 언어 변경: %1$s</string>
+    <string name="screen_toast_target_lang_changed_format">번역 대상 언어 변경: %1$s</string>
+    <string name="screen_toast_model_changed_format">번역 모드 변경: %1$s</string>
+    <string name="screen_toast_service_stopped">화면 번역 서비스가 종료되었습니다.</string>
+    <string name="screen_confirm_area_done">영역 설정 완료</string>
+    <string name="screen_toast_area_fixed">영역이 고정되었습니다. 번역 시작 버튼을 눌러주세요.</string>
+    <string name="screen_toast_area_select_larger">영역을 더 크게 지정해주세요.</string>
+    <string name="screen_toast_overlay_error">오버레이 실행 오류</string>
+    <string name="screen_toast_permission_error">권한 오류: 앱을 다시 실행해주세요.</string>
+    <string name="screen_toast_select_area_first">먼저 번역 영역을 지정해주세요.</string>
+    <string name="screen_toast_insufficient_gold">골드가 부족합니다. 충전해주세요.</string>
+    <string name="screen_toast_insufficient_silver">실버가 부족합니다. 충전해주세요.</string>
+    <string name="screen_toast_capture_permission_missing">캡처 권한이 없습니다.</string>
+    <string name="screen_toast_capture_area_error">캡처 영역 오류</string>
+    <string name="screen_toast_too_many_chars_format">감지된 글자가 너무 많아 번역할 수 없습니다. (감지: %1$d / 제한: %2$d)</string>
+    <string name="screen_toast_text_not_found">텍스트를 찾지 못했습니다.</string>
+    <string name="screen_toast_ocr_failed">OCR 실패</string>
+    <string name="screen_loading_analyzing">텍스트 분석 중...</string>
+    <string name="screen_loading_translating">번역중...</string>
+    <string name="screen_toast_translation_error">번역 중 오류가 발생했습니다.</string>
+    <string name="screen_toast_translation_failed">번역 실패</string>
+    <string name="screen_notification_channel_name">화면 번역</string>
+    <string name="screen_notification_title">화면 번역 실행 중</string>
+    <string name="screen_notification_content_format">모드: %1$s</string>
 </resources>

@@ -1,5 +1,16 @@
 ﻿<resources>
     <string name="app_name">漫画翻译</string>
+    <string-array name="app_language_options">
+        <item>韩语</item>
+        <item>日语</item>
+        <item>中文</item>
+        <item>英语</item>
+    </string-array>
+    <string-array name="theme_options">
+        <item>跟随系统</item>
+        <item>浅色模式</item>
+        <item>深色模式</item>
+    </string-array>
     <string name="nav_main">主页</string>
     <string name="nav_library">书库</string>
 
@@ -36,5 +47,124 @@
     <string name="vn_lang_english">英语</string>
     <string name="vn_lang_japanese">日语</string>
     <string name="vn_lang_chinese">中文</string>
+    <string name="settings_language">语言设置</string>
+    <string name="settings_version_name_format">v%1$s</string>
+    <string name="settings_language_label">语言</string>
+    <string name="language_name_korean">韩语</string>
+    <string name="language_name_japanese">日语</string>
+    <string name="language_name_chinese">中文</string>
+    <string name="language_name_english">英语</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_close">关闭</string>
+    <string name="common_ok">确定</string>
+    <string name="common_retry">重试</string>
+    <string name="btn_login">登录</string>
+    <string name="viewer_book_title_placeholder">书名</string>
+    <string name="viewer_page_indicator_format">%1$d / %2$d</string>
+    <string name="book_title_placeholder">书名</string>
+    <string name="book_new_badge">新书</string>
+    <string name="book_pages_placeholder">0页</string>
+    <string name="book_pages_format">%1$d页</string>
+    <string name="action_select_image_title">选择图片</string>
+    <string name="action_select_image_hint_mass">开始批量翻译。</string>
+    <string name="action_novel_translation_title">小说翻译</string>
+    <string name="vn_game_translation_button">视觉小说/游戏翻译</string>
+    <string name="main_mode_cost_guide">快速: 免费 · 均衡: 每次消耗1银币 · 精细: 每次消耗1金币</string>
+    <string name="main_status_idle">待机中</string>
+    <string name="main_status_novel_running">小说翻译进行中</string>
+    <string name="main_stop">停止任务</string>
+    <string name="main_status_stopping">正在停止...</string>
+    <string name="main_status_translating">翻译中</string>
+    <string name="main_status_file_selection_canceled">已取消文件选择。</string>
+    <string name="main_status_done_format">完成: %1$s</string>
+    <string name="main_status_done_short">完成</string>
+    <string name="main_status_error">错误</string>
+    <string name="main_progress_message_format">%1$s\n(%2$d / %3$d)\n可在通知中停止。</string>
+    <string name="main_gold_balance_format">%1$d G</string>
+    <string name="main_error_network_required">需要联网。</string>
+    <string name="main_error_file_size_limit">所选图片均超过 %1$dMB。</string>
+    <string name="main_error_file_size_rejected">%1$d 张图片因超过 %2$dMB 被排除。</string>
+    <string name="main_notification_permission_title">需要通知权限</string>
+    <string name="main_notification_permission_rationale">查看翻译进度需要通知权限。</string>
+    <string name="main_notification_permission_denied_message">通知权限被拒绝，无法显示翻译进度。\n\n请在设置中允许通知权限。</string>
+    <string name="main_notification_permission_missing_hint">缺少通知权限时，后台进度可能无法显示。</string>
+    <string name="main_notification_permission_granted">通知权限已允许。</string>
+    <string name="main_open_settings">打开设置</string>
+    <string name="main_google_login_missing_token">Google 登录失败：缺少 ID token。</string>
+    <string name="main_firebase_login_failed">Firebase 登录失败，请重试。</string>
+    <string name="main_google_login_config_error">Google 登录配置错误，请检查 OAuth 客户端/SHA-1。</string>
+    <string name="main_google_login_failed_code">Google 登录失败，代码：%1$d</string>
+    <string name="main_screen_capture_permission_denied">屏幕捕获权限被拒绝。</string>
+    <string name="main_guide_dialog_title">即时屏幕翻译使用方法</string>
+    <string name="main_guide_dialog_message">1. 点击“开始翻译”。\n2. 拖动绿色区域选择翻译范围。\n3. 开启区域固定后范围会保持不变，需移动时请关闭区域固定。</string>
+    <string name="main_store_not_ready_title">商店尚未就绪</string>
+    <string name="main_store_not_ready_message">无法加载商品信息。\n\n请检查 Google Play Console 设置。</string>
+    <string name="main_recharge_dialog_title">充值（银币/金币）</string>
+    <string name="main_error_dialog_title">发生错误</string>
+    <string name="main_overlay_permission_required">请允许“显示在其他应用上层”权限。</string>
+    <string name="vn_start_translation">开始翻译</string>
+    <string name="vn_package_small_label">+5,000 字（50 银币）</string>
+    <string name="vn_package_medium_label">+10,000 字（80 银币）</string>
+    <string name="vn_package_large_label">+50,000 字（350 银币）</string>
+    <string name="settings_history_chars_count_format">%1$,d 字</string>
+    <string name="settings_history_chars_5000">5,000 字</string>
+    <string name="settings_history_chars_10000">10,000 字</string>
+    <string name="settings_history_chars_50000">50,000 字</string>
+    <string name="translation_running_other_task">其他翻译</string>
+    <string name="translation_task_mass">批量翻译</string>
+    <string name="translation_task_novel">小说翻译</string>
+    <string name="mass_status_preparing">准备中...</string>
+    <string name="mass_status_finalizing">收尾中...</string>
+    <string name="mass_status_checking_offline_model">正在检查离线翻译模型...</string>
+    <string name="mass_status_analyzing_positions_format">正在分析文本位置... (%1$d/%2$d)</string>
+    <string name="mass_progress_analyzing_format">正在分析文本 (%1$d/%2$d)</string>
+    <string name="mass_status_translating_rendering">正在翻译并渲染图片...</string>
+    <string name="mass_progress_in_progress_format">翻译进行中 (%1$d/%2$d - %3$d%%)</string>
+    <string name="mass_status_complete_format">翻译完成!（%1$d页）</string>
+    <string name="mass_complete_message_format">完成!（%1$d页）</string>
+    <string name="mass_skip_pages_suffix_format"> · 因文本过多已跳过: 第 %1$s 页</string>
+    <string name="mass_status_stopped">翻译已停止。</string>
+    <string name="mass_complete_stopped_format">任务已停止（完成: %1$d页）</string>
+    <string name="mass_error_prefix_format">错误: %1$s</string>
+    <string name="mass_book_title_format">批量 - %1$s</string>
+    <string name="mass_translation_failed">翻译失败</string>
+    <string name="main_error_insufficient_gold_detail">金币不足。（拥有: %1$d，需要: %2$d）</string>
+    <string name="main_error_insufficient_silver_detail">银币不足。（拥有: %1$d，需要: %2$d）</string>
+    <string name="main_loading_check_balance">正在检查余额...</string>
+    <string name="main_error_login_required">需要先登录。</string>
+    <string name="main_error_insufficient_currency_charge">%1$s不足，请先充值。</string>
+    <string name="main_loading_starting_service">正在启动服务...</string>
+    <string name="library_no_readable_content">这本书没有可阅读内容。</string>
+    <string name="library_delete_book_title">删除书籍</string>
+    <string name="library_delete_book_message">删除“%1$s”？</string>
+    <string name="library_delete_done">已删除。</string>
+    <string name="novel_title_with_timestamp">小说 - %1$s</string>
+    <string name="screen_auto_monitor_start_failed">自动翻译监控启动失败。</string>
+    <string name="screen_auto_monitor_started">自动翻译已开始：正在检测区域变化</string>
+    <string name="screen_auto_monitor_stopped">自动翻译已停止。</string>
+    <string name="screen_toast_source_lang_changed_format">源语言已变更：%1$s</string>
+    <string name="screen_toast_target_lang_changed_format">目标语言已变更：%1$s</string>
+    <string name="screen_toast_model_changed_format">翻译模式已变更：%1$s</string>
+    <string name="screen_toast_service_stopped">屏幕翻译服务已停止。</string>
+    <string name="screen_confirm_area_done">完成区域设置</string>
+    <string name="screen_toast_area_fixed">区域已固定，请点击翻译按钮继续。</string>
+    <string name="screen_toast_area_select_larger">请将区域选得更大一些。</string>
+    <string name="screen_toast_overlay_error">悬浮层启动错误</string>
+    <string name="screen_toast_permission_error">权限错误：请重启应用。</string>
+    <string name="screen_toast_select_area_first">请先选择翻译区域。</string>
+    <string name="screen_toast_insufficient_gold">金币不足，请充值。</string>
+    <string name="screen_toast_insufficient_silver">银币不足，请充值。</string>
+    <string name="screen_toast_capture_permission_missing">缺少捕获权限。</string>
+    <string name="screen_toast_capture_area_error">捕获区域错误</string>
+    <string name="screen_toast_too_many_chars_format">检测到的文本过多，无法翻译。（检测: %1$d / 限制: %2$d）</string>
+    <string name="screen_toast_text_not_found">未找到文本。</string>
+    <string name="screen_toast_ocr_failed">OCR 失败。</string>
+    <string name="screen_loading_analyzing">正在分析文本...</string>
+    <string name="screen_loading_translating">翻译中...</string>
+    <string name="screen_toast_translation_error">翻译过程中发生错误。</string>
+    <string name="screen_toast_translation_failed">翻译失败</string>
+    <string name="screen_notification_channel_name">屏幕翻译</string>
+    <string name="screen_notification_title">屏幕翻译运行中</string>
+    <string name="screen_notification_content_format">模式: %1$s</string>
 </resources>
 

@@ -100,4 +100,5 @@ dependencies {
 
     // [New] Coroutines Play Services (Task await 사용을 위해)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }

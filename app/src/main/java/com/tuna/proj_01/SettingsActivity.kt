@@ -1,4 +1,4 @@
-package com.tuna.proj_01
+﻿package com.tuna.proj_01
 
 import android.Manifest
 import android.content.ClipData
@@ -18,10 +18,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
-import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -38,10 +36,11 @@ import java.io.File
 import java.io.FileInputStream
 import kotlin.math.abs
 
-class SettingsActivity : AppCompatActivity() {
-    private companion object {
-        // 내역은 최근 50개만 표시하여 렌더링/스크롤 비용을 제한
+class SettingsActivity : LocalizedActivity() {
+    companion object {
+        // ?댁뿭? 理쒓렐 50媛쒕쭔 ?쒖떆?섏뿬 ?뚮뜑留??ㅽ겕濡?鍮꾩슜???쒗븳
         private const val MAX_HISTORY_ITEMS = 50L
+        const val EXTRA_LANGUAGE_CHANGED = "extra_language_changed"
     }
 
     private data class TransactionEntry(
@@ -61,6 +60,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
     private lateinit var historyAdapter: SilverHistoryAdapter
+    private lateinit var tvLanguageCurrent: TextView
 
     private val exportPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
@@ -83,48 +83,50 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun initView() {
-        // 뒤로가기
+        // ?ㅻ줈媛湲?
         findViewById<LinearLayout>(R.id.btn_back).setOnClickListener { finish() }
 
-        // 로그아웃
+        // 濡쒓렇?꾩썐
         findViewById<TextView>(R.id.btn_logout).setOnClickListener { showLogoutDialog() }
 
-        // UID 복사
+        // UID 蹂듭궗
         findViewById<TextView>(R.id.btn_copy_uid).setOnClickListener {
             val uid = findViewById<TextView>(R.id.tv_user_uid).text.toString()
             copyToClipboard(uid)
         }
 
-        findViewById<TextView>(R.id.btn_language).setOnClickListener { showLanguageDialog() }
+        tvLanguageCurrent = findViewById(R.id.tv_language_current)
+        updateLanguageRow()
+        findViewById<View>(R.id.btn_language).setOnClickListener { showLanguageDialog() }
 
-        // 테마 설정
+        // ?뚮쭏 ?ㅼ젙
         findViewById<TextView>(R.id.btn_theme).setOnClickListener { showThemeDialog() }
 
-        // 피드백
+        // ?쇰뱶諛?
         findViewById<TextView>(R.id.btn_feedback).setOnClickListener { sendFeedbackEmail() }
 
-        // [추가] 책 내보내기 버튼 연결
+        // [異붽?] 梨??대낫?닿린 踰꾪듉 ?곌껐
         findViewById<TextView>(R.id.btn_export_all_books).setOnClickListener {
             checkExportPermission()
         }
 
         findViewById<TextView>(R.id.btn_privacy_policy).setOnClickListener {
-            // 실제 사용하실 주소로 변경해주세요
+            // ?ㅼ젣 ?ъ슜?섏떎 二쇱냼濡?蹂寃쏀빐二쇱꽭??
             val url = "https://sites.google.com/view/glass-beta/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }
 
-        // 버전 정보
+        // 踰꾩쟾 ?뺣낫
         val tvVersion = findViewById<TextView>(R.id.tv_version)
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
-            tvVersion.text = "v${pInfo.versionName}"
+            tvVersion.text = getString(R.string.settings_version_name_format, pInfo.versionName)
         } catch (e: Exception) {
             tvVersion.text = getString(R.string.common_unknown)
         }
 
-        // RecyclerView 설정
+        // RecyclerView ?ㅼ젙
         val rvHistory = findViewById<RecyclerView>(R.id.rv_silver_history)
         historyAdapter = SilverHistoryAdapter()
         rvHistory.layoutManager = LinearLayoutManager(this)
@@ -142,7 +144,7 @@ class SettingsActivity : AppCompatActivity() {
             tvEmail.text = user.email ?: getString(R.string.settings_no_email)
             tvUid.text = user.uid
 
-            // 잔액 실시간 업데이트
+            // ?붿븸 ?ㅼ떆媛??낅뜲?댄듃
             db.collection("users").document(user.uid)
                 .addSnapshotListener { snapshot, e ->
                     if (e != null) return@addSnapshotListener
@@ -305,10 +307,10 @@ class SettingsActivity : AppCompatActivity() {
             val packageId = pkgMatch?.groupValues?.getOrNull(1).orEmpty()
             val charCount = pkgMatch?.groupValues?.getOrNull(2)?.toIntOrNull()
             val pkgLabel = when {
-                charCount != null -> String.format("%,d자", charCount)
-                packageId == "SMALL" -> "5,000자"
-                packageId == "MEDIUM" -> "10,000자"
-                packageId == "LARGE" -> "50,000자"
+                charCount != null -> getString(R.string.settings_history_chars_count_format, charCount)
+                packageId == "SMALL" -> getString(R.string.settings_history_chars_5000)
+                packageId == "MEDIUM" -> getString(R.string.settings_history_chars_10000)
+                packageId == "LARGE" -> getString(R.string.settings_history_chars_50000)
                 else -> "-"
             }
             val subtitle = getString(R.string.settings_history_package_subtitle_format, pkgLabel, currencyLabel)
@@ -486,7 +488,7 @@ class SettingsActivity : AppCompatActivity() {
             var successCount = 0
 
             for (bookFolder in books) {
-                // 책 제목 찾기
+                // 梨??쒕ぉ 李얘린
                 val jsonFile = File(bookFolder, "metadata.json")
                 var title = bookFolder.name
                 if (jsonFile.exists()) {
@@ -496,11 +498,11 @@ class SettingsActivity : AppCompatActivity() {
                     } catch (e: Exception) {}
                 }
 
-                // 폴더명으로 안전한 이름 만들기
-                val safeTitle = title.replace(Regex("[^a-zA-Z0-9가-힣_\\- ]"), "").trim()
+                // ?대뜑紐낆쑝濡??덉쟾???대쫫 留뚮뱾湲?
+                val safeTitle = title.replace(Regex("[^a-zA-Z0-9媛-??\\- ]"), "").trim()
                 val targetName = if (safeTitle.isNotEmpty()) safeTitle else bookFolder.name
 
-                // 1. 소설 확인 (translated.txt)
+                // 1. ?뚯꽕 ?뺤씤 (translated.txt)
                 val translatedFile = File(bookFolder, "translated.txt")
                 if (translatedFile.exists()) {
                     val exportName = "$targetName.txt"
@@ -515,7 +517,7 @@ class SettingsActivity : AppCompatActivity() {
                     continue
                 }
 
-                // 2. 만화 이미지 확인
+                // 2. 留뚰솕 ?대?吏 ?뺤씤
                 val images = bookFolder.listFiles { f ->
                     val n = f.name.lowercase()
                     n.endsWith(".jpg") || n.endsWith(".png")
@@ -568,14 +570,19 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showThemeDialog() {
         val themes = resources.getStringArray(R.array.theme_options)
+        val themeModes = intArrayOf(
+            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM,
+            AppCompatDelegate.MODE_NIGHT_NO,
+            AppCompatDelegate.MODE_NIGHT_YES
+        )
+        val currentMode = AppThemeManager.getThemeMode(this)
+        val checked = themeModes.indexOf(currentMode).takeIf { it >= 0 } ?: 0
+
         AlertDialog.Builder(this)
             .setTitle(R.string.settings_theme)
-            .setItems(themes) { _, which ->
-                when (which) {
-                    0 -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-                    1 -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-                    2 -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-                }
+            .setSingleChoiceItems(themes, checked) { dialog, which ->
+                AppThemeManager.setThemeMode(this, themeModes[which])
+                dialog.dismiss()
             }
             .setNegativeButton(R.string.common_cancel, null)
             .show()
@@ -583,19 +590,45 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showLanguageDialog() {
         val languageOptions = resources.getStringArray(R.array.app_language_options)
-        val languageTags = arrayOf("ko", "ja", "zh", "en")
-        val currentTag = AppCompatDelegate.getApplicationLocales().toLanguageTags().ifBlank { "ko" }
+        val languageTags = AppLanguageManager.getSupportedLanguageTags()
+        val currentTag = AppLanguageManager.getSelectedLanguageTag(this)
         val checked = languageTags.indexOfFirst { currentTag.startsWith(it) }.coerceAtLeast(0)
 
         AlertDialog.Builder(this)
             .setTitle(R.string.settings_language)
             .setSingleChoiceItems(languageOptions, checked) { dialog, which ->
-                AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(languageTags[which]))
+                val selectedTag = languageTags[which]
+                val changed = AppLanguageManager.setLanguage(this, selectedTag, applyNow = false)
                 dialog.dismiss()
-                recreate()
+                if (changed) {
+                    showRestartRequiredDialog(selectedTag)
+                } else {
+                    updateLanguageRow()
+                }
             }
             .setNegativeButton(R.string.common_cancel, null)
             .show()
+    }
+
+    private fun showRestartRequiredDialog(languageTag: String) {
+        val localizedContext = AppLanguageManager.createLocalizedContext(this, languageTag)
+        val localizedResources = localizedContext.resources
+
+        AlertDialog.Builder(this)
+            .setTitle(localizedResources.getString(R.string.settings_language_restart_required_title))
+            .setMessage(localizedResources.getString(R.string.settings_language_restart_required_message))
+            .setCancelable(false)
+            .setPositiveButton(localizedResources.getString(R.string.common_ok), null)
+            .show()
+    }
+
+    private fun updateLanguageRow() {
+        val currentTag = AppLanguageManager.getSelectedLanguageTag(this)
+        tvLanguageCurrent.text = when {
+            currentTag.startsWith("ko") -> getString(R.string.language_name_korean)
+            currentTag.startsWith("ja") -> getString(R.string.language_name_japanese)
+            else -> getString(R.string.language_name_english)
+        }
     }
 
     private fun sendFeedbackEmail() {
@@ -618,3 +651,5 @@ class SettingsActivity : AppCompatActivity() {
         Toast.makeText(this, getString(R.string.settings_uid_copied), Toast.LENGTH_SHORT).show()
     }
 }
+
+

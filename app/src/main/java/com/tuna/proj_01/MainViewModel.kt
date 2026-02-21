@@ -63,14 +63,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val current = intent.getIntExtra("CURRENT", 0)
                     val total = intent.getIntExtra("TOTAL", 0)
                     val msg = intent.getStringExtra("MESSAGE") ?: ""
-                    _uiState.value = UiState.Loading("$msg\n($current / $total)\n[Can be stopped from notification]")
+                    _uiState.value = UiState.Loading(
+                        this@MainViewModel.context.getString(
+                            R.string.main_progress_message_format,
+                            msg,
+                            current,
+                            total
+                        )
+                    )
                 }
                 MassTranslationService.BROADCAST_COMPLETE -> {
-                    val msg = intent.getStringExtra("MESSAGE") ?: "Done"
+                    val msg = intent.getStringExtra("MESSAGE")
+                        ?: this@MainViewModel.context.getString(R.string.main_status_done_short)
                     _uiState.value = UiState.Success(msg)
                 }
                 MassTranslationService.BROADCAST_ERROR -> {
-                    val msg = intent.getStringExtra("MESSAGE") ?: "Error"
+                    val msg = intent.getStringExtra("MESSAGE")
+                        ?: this@MainViewModel.context.getString(R.string.main_status_error)
                     _uiState.value = UiState.Error(msg)
                 }
                 MassTranslationService.ACTION_REFRESH_BOOKSHELF -> {
@@ -147,52 +156,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // [변경] modelTier, targetLang 파라미터 추가
-    fun processImages(uris: List<Uri>, selectedLang: String, targetLang: String = "Korean", modelTier: String = "ADVANCED") {
+    fun processImages(
+        uris: List<Uri>,
+        selectedLang: String,
+        targetLang: String = "Korean",
+        modelTier: String = "ADVANCED"
+    ) {
         if (uris.isEmpty()) return
 
         if (TranslationWorkState.isAnyTranslationRunning(context)) {
-            val runningTask = TranslationWorkState.runningTaskName(context) ?: "다른 번역"
-            _uiState.value = UiState.Error("$runningTask 진행 중에는 새 번역을 시작할 수 없습니다.")
+            val runningTask = TranslationWorkState.runningTaskName(context)
+                ?: context.getString(R.string.translation_running_other_task)
+            _uiState.value = UiState.Error(
+                context.getString(R.string.translation_running_block_message, runningTask)
+            )
             return
         }
 
         val sortedUris = sortUrisByName(uris)
         val totalCount = sortedUris.size
 
-        // 0. 클라이언트 사이드 잔액 사전 체크 (빠른 피드백용)
-        if (modelTier == "PRO") {
-            if (_userGoldBalance.value < totalCount) {
-                _uiState.value = UiState.Error("골드가 부족합니다! (보유: ${_userGoldBalance.value}, 필요: $totalCount)")
-                return
-            }
-        } else if (modelTier == "ADVANCED") {
-            if (_userBalance.value < totalCount) {
-                _uiState.value = UiState.Error("실버가 부족합니다! (보유: ${_userBalance.value}, 필요: $totalCount)")
-                return
-            }
+        if (modelTier == "PRO" && _userGoldBalance.value < totalCount) {
+            _uiState.value = UiState.Error(
+                context.getString(
+                    R.string.main_error_insufficient_gold_detail,
+                    _userGoldBalance.value,
+                    totalCount
+                )
+            )
+            return
         }
-        // STANDARD (Free) -> 통과
+
+        if (modelTier == "ADVANCED" && _userBalance.value < totalCount) {
+            _uiState.value = UiState.Error(
+                context.getString(
+                    R.string.main_error_insufficient_silver_detail,
+                    _userBalance.value,
+                    totalCount
+                )
+            )
+            return
+        }
 
         viewModelScope.launch {
-            _uiState.value = UiState.Loading("잔액 확인 중...")
+            _uiState.value = UiState.Loading(context.getString(R.string.main_loading_check_balance))
 
             val uid = auth.currentUser?.uid
             if (uid == null) {
-                _uiState.value = UiState.Error("로그인이 필요합니다.")
+                _uiState.value = UiState.Error(context.getString(R.string.main_error_login_required))
                 return@launch
             }
 
-            // 1. 서버 사이드 잔액 정밀 체크
             var hasBalance = true
             try {
                 if (modelTier != "STANDARD") {
                     val snapshot = db.collection("users").document(uid).get().await()
-                    if (modelTier == "PRO") {
-                        val gold = snapshot.getLong("gold_balance") ?: 0
-                        hasBalance = gold >= totalCount
-                    } else { // ADVANCED
-                        val silver = snapshot.getLong("current_balance") ?: 0
-                        hasBalance = silver >= totalCount
+                    hasBalance = if (modelTier == "PRO") {
+                        (snapshot.getLong("gold_balance") ?: 0) >= totalCount
+                    } else {
+                        (snapshot.getLong("current_balance") ?: 0) >= totalCount
                     }
                 }
             } catch (e: Exception) {
@@ -200,28 +222,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             if (!hasBalance) {
-                val currency = if (modelTier == "PRO") "골드가" else "실버가"
-                _uiState.value = UiState.Error("$currency 부족합니다! (충전 필요)")
+                val currencyLabel = if (modelTier == "PRO") {
+                    context.getString(R.string.settings_history_currency_gold)
+                } else {
+                    context.getString(R.string.settings_history_currency_silver)
+                }
+                _uiState.value = UiState.Error(
+                    context.getString(R.string.main_error_insufficient_currency_charge, currencyLabel)
+                )
                 checkUserBalance()
                 return@launch
             }
 
-            _uiState.value = UiState.Loading("서비스 시작 중...")
+            _uiState.value = UiState.Loading(context.getString(R.string.main_loading_starting_service))
 
-            // 2. 책 폴더 생성
             val bookDir = createBookDirectory()
             repository.updateBookMetadata(bookDir.name)
 
-            // 3. 데이터 홀더에 저장
             TranslationDataHolder.targetUris = sortedUris
             TranslationDataHolder.targetBookDir = bookDir
 
-            // 4. 서비스 시작
             val serviceIntent = Intent(context, MassTranslationService::class.java).apply {
                 action = MassTranslationService.ACTION_START
                 putExtra("LANG", selectedLang)
                 putExtra("TARGET_LANG", targetLang)
-                putExtra("MODEL_TIER", modelTier) // [추가]
+                putExtra("MODEL_TIER", modelTier)
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -258,7 +283,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         if (index != -1) result = cursor.getString(index)
                     }
                 }
-            } catch (e: Exception) { Log.e(TAG, "파일명 로드 실패", e) }
+            } catch (e: Exception) { Log.e(TAG, "Failed to load file name", e) }
         }
         if (result == null) {
             result = uri.path
@@ -276,3 +301,5 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {}
     }
 }
+
+

@@ -19,12 +19,12 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -38,17 +38,37 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslatorOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : LocalizedActivity() {
     companion object {
         private const val TAG = "MainActivity"
         // Matches app/google-services.json (OAuth web client, type 3)
         private const val GOOGLE_WEB_CLIENT_ID = "691923720143-m2dbnoal2cbc8vn6piu7c7gsi55p7lid.apps.googleusercontent.com"
+        private const val PREF_APP = "app_prefs"
+        private const val KEY_HAS_USED_SCREEN_TRANS = "has_used_screen_trans"
+        private const val KEY_SOURCE_LANG_CODE = "source_lang_code"
+        private const val KEY_TARGET_LANG_CODE = "target_lang_code"
+        private const val LEGACY_KEY_TARGET_LANG = "target_lang"
     }
 
-    // [異붽?] ?붾㈃ 踰덉뿭 理쒖큹 ?ъ슜 ?щ? ??
-    private val KEY_HAS_USED_SCREEN_TRANS = "has_used_screen_trans"
+    private data class UiLanguageOption(
+        val label: String,
+        val ocrCode: String
+    )
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -97,11 +117,30 @@ class MainActivity : AppCompatActivity() {
 
     // ?꾩옱 ?좏깮??紐⑤뜽 (湲곕낯媛? ADVANCED)
     private var currentModelTier = "ADVANCED"
+    private var selectedSourceLangCode = "Japanese"
+    private var selectedTargetLangCode = "English"
+    private val standardModelPrefetchScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val standardModelDownloadInFlight = ConcurrentHashMap<String, Boolean>()
+    private val standardModelDownloadReady = ConcurrentHashMap<String, Boolean>()
 
     private val MAX_FILE_SIZE_MB = 20
     private val MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-    private val sourceLanguages = arrayOf("Japanese", "English", "Korean", "Chinese")
-    private val targetLanguages = arrayOf("English", "Korean", "Japanese", "Chinese")
+    private val sourceLanguageOptions by lazy {
+        listOf(
+            UiLanguageOption(getString(R.string.language_name_japanese), "Japanese"),
+            UiLanguageOption(getString(R.string.language_name_english), "English"),
+            UiLanguageOption(getString(R.string.language_name_korean), "Korean"),
+            UiLanguageOption(getString(R.string.language_name_chinese), "Chinese")
+        )
+    }
+    private val targetLanguageOptions by lazy {
+        listOf(
+            UiLanguageOption(getString(R.string.language_name_english), "English"),
+            UiLanguageOption(getString(R.string.language_name_korean), "Korean"),
+            UiLanguageOption(getString(R.string.language_name_japanese), "Japanese"),
+            UiLanguageOption(getString(R.string.language_name_chinese), "Chinese")
+        )
+    }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -109,22 +148,22 @@ class MainActivity : AppCompatActivity() {
         if (!isGranted) {
             showPermissionDeniedDialog()
         } else {
-            Toast.makeText(this, "?뚮┝ 沅뚰븳???덉슜?섏뿀?듬땲??", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.main_notification_permission_granted), Toast.LENGTH_SHORT).show()
         }
     }
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isNotEmpty()) {
             if (!isNetworkAvailable()) {
-                Toast.makeText(this, "?명꽣???곌껐??OK?댁＜?몄슂.", Toast.LENGTH_SHORT).show()
-                updateStatus("?명꽣???곌껐???꾩슂?⑸땲??")
+                Toast.makeText(this, getString(R.string.main_error_network_required), Toast.LENGTH_SHORT).show()
+                updateStatus(getString(R.string.main_error_network_required))
                 return@registerForActivityResult
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "?뚮┝ 沅뚰븳???놁뼱 諛깃렇?쇱슫??吏꾪뻾 ?곹솴???쒖떆?섏? ?딆쓣 ???덉뒿?덈떎.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.main_notification_permission_missing_hint), Toast.LENGTH_LONG).show()
                 }
             }
 
@@ -132,7 +171,8 @@ class MainActivity : AppCompatActivity() {
 
             if (validUris.isNotEmpty()) {
                 if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                    val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
+                    val runningTask = TranslationWorkState.runningTaskName(this)
+                        ?: getString(R.string.translation_running_other_task)
                     Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                     return@registerForActivityResult
                 }
@@ -143,10 +183,10 @@ class MainActivity : AppCompatActivity() {
                 // [蹂寃? ADVANCED 寃쎄퀬??btnSelectOverlay ?대┃ ??泥섎━濡??대룞
                 viewModel.processImages(validUris, selectedLang, selectedTargetLang, currentModelTier)
             } else {
-                updateStatus("All selected images exceed size limit (${MAX_FILE_SIZE_MB}MB).")
+                updateStatus(getString(R.string.main_error_file_size_limit, MAX_FILE_SIZE_MB))
             }
         } else {
-            updateStatus("File selection canceled.")
+            updateStatus(getString(R.string.main_status_file_selection_canceled))
         }
     }
 
@@ -157,7 +197,7 @@ class MainActivity : AppCompatActivity() {
                 val account = task.getResult(ApiException::class.java)!!
                 val idToken = account.idToken
                 if (idToken.isNullOrBlank()) {
-                    Toast.makeText(this, "Google login failed: missing ID token", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.main_google_login_missing_token), Toast.LENGTH_LONG).show()
                     return@registerForActivityResult
                 }
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
@@ -167,15 +207,15 @@ class MainActivity : AppCompatActivity() {
                         updateUI(true)
                     } else {
                         Log.e(TAG, "Firebase sign-in with Google credential failed", task.exception)
-                        Toast.makeText(this, "Firebase login failed. Please try again.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, getString(R.string.main_firebase_login_failed), Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: ApiException) {
                 Log.e(TAG, "Google sign-in failed. statusCode=${e.statusCode}", e)
                 val message = if (e.statusCode == 10) {
-                    "Google login config error (DEVELOPER_ERROR). Check OAuth client/SHA-1."
+                    getString(R.string.main_google_login_config_error)
                 } else {
-                    "Google login failed. code=${e.statusCode}"
+                    getString(R.string.main_google_login_failed_code, e.statusCode)
                 }
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             }
@@ -186,7 +226,14 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             startOverlayService(result.resultCode, result.data!!)
         } else {
-            Toast.makeText(this, "Screen capture permission denied.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.main_screen_capture_permission_denied), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val settingsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val changed = result.data?.getBooleanExtra(SettingsActivity.EXTRA_LANGUAGE_CHANGED, false) == true
+        if (changed) {
+            recreate()
         }
     }
 
@@ -218,7 +265,7 @@ class MainActivity : AppCompatActivity() {
 
         checkNotificationPermission()
 
-        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
         if (prefs.getBoolean("first_run_help", true)) {
             startActivity(Intent(this, HelpActivity::class.java))
             prefs.edit().putBoolean("first_run_help", false).apply()
@@ -235,12 +282,12 @@ class MainActivity : AppCompatActivity() {
             ) {
                 if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
                     AlertDialog.Builder(this)
-                        .setTitle("Notification permission required")
-                        .setMessage("Notification permission is required to view translation progress.")
-                        .setPositiveButton("OK") { _, _ ->
+                        .setTitle(R.string.main_notification_permission_title)
+                        .setMessage(R.string.main_notification_permission_rationale)
+                        .setPositiveButton(R.string.common_ok) { _, _ ->
                             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
-                        .setNegativeButton("Cancel", null)
+                        .setNegativeButton(R.string.common_cancel, null)
                         .show()
                 } else {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -251,9 +298,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPermissionDeniedDialog() {
         AlertDialog.Builder(this)
-            .setTitle("Notification permission required")
-            .setMessage("?뚮┝ 沅뚰븳??嫄곕??섏뼱 踰덉뿭 吏꾪뻾 ?곹솴??OK?????놁뒿?덈떎.\n\n?ㅼ젙 > ?뚮┝?먯꽌 沅뚰븳???덉슜?댁＜?몄슂.")
-            .setPositiveButton("Open settings") { _, _ ->
+            .setTitle(R.string.main_notification_permission_title)
+            .setMessage(R.string.main_notification_permission_denied_message)
+            .setPositiveButton(R.string.main_open_settings) { _, _ ->
                 try {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                         data = Uri.fromParts("package", packageName, null)
@@ -263,15 +310,16 @@ class MainActivity : AppCompatActivity() {
                     e.printStackTrace()
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.common_cancel, null)
             .show()
     }
 
     override fun onResume() {
         super.onResume()
         checkServiceState()
+        updateNovelRunningStatusUi()
 
-        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
         if (prefs.getBoolean("first_run_help", true)) {
             startActivity(Intent(this, HelpActivity::class.java))
             prefs.edit().putBoolean("first_run_help", false).apply()
@@ -326,7 +374,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (rejectedCount > 0) {
-            Toast.makeText(this, "${rejectedCount} images were excluded for exceeding ${MAX_FILE_SIZE_MB}MB.", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                getString(R.string.main_error_file_size_rejected, rejectedCount, MAX_FILE_SIZE_MB),
+                Toast.LENGTH_LONG
+            ).show()
         }
         return validList
     }
@@ -416,49 +468,80 @@ class MainActivity : AppCompatActivity() {
 
         // ?먮Ц ?몄뼱 ?ㅽ뵾??
         spinnerTargetLang = findViewById(R.id.spinner_target_lang)
+        setupLanguageDropdown(spinnerLang)
+        setupLanguageDropdown(spinnerTargetLang)
 
-        spinnerLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, sourceLanguages))
-        spinnerTargetLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, targetLanguages))
-        spinnerLang.setText(sourceLanguages.first(), false)
+        val sourceLabels = sourceLanguageOptions.map { it.label }
+        val targetLabels = targetLanguageOptions.map { it.label }
+        spinnerLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, sourceLabels))
+        spinnerTargetLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, targetLabels))
+        val prefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
+        selectedSourceLangCode = resolveSavedLanguageCode(
+            raw = prefs.getString(KEY_SOURCE_LANG_CODE, null),
+            options = sourceLanguageOptions,
+            fallback = sourceLanguageOptions.first().ocrCode
+        )
+        selectedTargetLangCode = resolveSavedLanguageCode(
+            raw = prefs.getString(KEY_TARGET_LANG_CODE, null)
+                ?: prefs.getString(LEGACY_KEY_TARGET_LANG, null),
+            options = targetLanguageOptions,
+            fallback = targetLanguageOptions.first().ocrCode
+        )
 
-        val savedTargetLang = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            .getString("target_lang", targetLanguages.first()) ?: targetLanguages.first()
-        val initialTarget = if (targetLanguages.contains(savedTargetLang)) savedTargetLang else targetLanguages.first()
-        spinnerTargetLang.setText(initialTarget, false)
+        val initialSource = sourceLanguageOptions.firstOrNull { it.ocrCode == selectedSourceLangCode }
+            ?: sourceLanguageOptions.first()
+        val initialTarget = targetLanguageOptions.firstOrNull { it.ocrCode == selectedTargetLangCode }
+            ?: targetLanguageOptions.first()
+        spinnerLang.setText(initialSource.label, false)
+        spinnerTargetLang.setText(initialTarget.label, false)
 
-        spinnerLang.setOnItemClickListener { _, _, _, _ ->
+        spinnerLang.setOnItemClickListener { _, _, position, _ ->
+            val selectedSource = sourceLanguageOptions.getOrNull(position)
+                ?: sourceLanguageOptions.firstOrNull { it.label == spinnerLang.text?.toString().orEmpty() }
+                ?: sourceLanguageOptions.first()
+            selectedSourceLangCode = selectedSource.ocrCode
+            prefs.edit().putString(KEY_SOURCE_LANG_CODE, selectedSourceLangCode).apply()
+
             if (isServiceRunning) {
                 val intent = Intent(this@MainActivity, ScreenTranslationService::class.java).apply {
                     action = ScreenTranslationService.ACTION_UPDATE_LANG
-                    putExtra("sourceLang", currentSourceLang())
+                    putExtra("sourceLang", selectedSourceLangCode)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
             }
+            if (currentModelTier == "STANDARD") {
+                maybePrefetchStandardModel(showHint = true)
+            }
         }
 
-        spinnerTargetLang.setOnItemClickListener { _, _, _, _ ->
-            val selectedTargetLang = currentTargetLang()
-            getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                .edit().putString("target_lang", selectedTargetLang).apply()
+        spinnerTargetLang.setOnItemClickListener { _, _, position, _ ->
+            val selectedTarget = targetLanguageOptions.getOrNull(position)
+                ?: targetLanguageOptions.firstOrNull { it.label == spinnerTargetLang.text?.toString().orEmpty() }
+                ?: targetLanguageOptions.first()
+            selectedTargetLangCode = selectedTarget.ocrCode
+            prefs.edit().putString(KEY_TARGET_LANG_CODE, selectedTargetLangCode).apply()
 
             if (isServiceRunning) {
                 val intent = Intent(this@MainActivity, ScreenTranslationService::class.java).apply {
                     action = ScreenTranslationService.ACTION_UPDATE_TARGET_LANG
-                    putExtra("targetLang", selectedTargetLang)
+                    putExtra("targetLang", selectedTargetLangCode)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+            }
+            if (currentModelTier == "STANDARD") {
+                maybePrefetchStandardModel(showHint = true)
             }
         }
 
         // [蹂寃? ???踰덉뿭: 濡쒓렇??泥댄겕 + ADVANCED 寃쎄퀬 ?쒖젏 ?대룞 (?대?吏 遺덈윭?ㅺ린 踰꾪듉 ?대┃ ??
         btnSelectOverlay.setOnClickListener {
             if (auth.currentUser == null) {
-                Toast.makeText(this, "濡쒓렇?몄쓣 癒쇱? ?댁＜?몄슂", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.main_error_login_required), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             if (currentModelTier == "ADVANCED") {
-                val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val prefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
                 if (prefs.getBoolean("skip_advanced_mass_warning", false)) {
                     pickImagesLauncher.launch("image/*")
                 } else {
@@ -467,11 +550,11 @@ class MainActivity : AppCompatActivity() {
                         .setTitle(getString(R.string.model_balanced_notice_title))
                         .setMessage(getString(R.string.model_balanced_notice_message))
                         .setView(dontShowAgainView)
-                        .setPositiveButton(android.R.string.ok) { _, _ ->
+                        .setPositiveButton(R.string.common_ok) { _, _ ->
                             if (cb.isChecked) prefs.edit().putBoolean("skip_advanced_mass_warning", true).apply()
                             pickImagesLauncher.launch("image/*")
                         }
-                        .setNegativeButton(android.R.string.cancel, null)
+                        .setNegativeButton(R.string.common_cancel, null)
                         .show()
                 }
             } else {
@@ -481,7 +564,8 @@ class MainActivity : AppCompatActivity() {
 
         btnNovelTranslation.setOnClickListener {
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
+                val runningTask = TranslationWorkState.runningTaskName(this)
+                    ?: getString(R.string.translation_running_other_task)
                 Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
@@ -490,7 +574,8 @@ class MainActivity : AppCompatActivity() {
 
         btnVnGameTranslation.setOnClickListener {
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
+                val runningTask = TranslationWorkState.runningTaskName(this)
+                    ?: getString(R.string.translation_running_other_task)
                 Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
@@ -502,12 +587,12 @@ class MainActivity : AppCompatActivity() {
 
             // UI 利됱떆 ?낅뜲?댄듃
             btnStopWork.isEnabled = false
-            tvStatus.text = "Stopping..."
+            tvStatus.text = getString(R.string.main_status_stopping)
         }
 
         // [?섏젙] ?붾㈃ 諛붾줈踰덉뿭 踰꾪듉 由ъ뒪??(理쒖큹 ?ㅽ뻾 ?꾩?留?泥댄겕 + 濡쒓렇??泥댄겕 ?ы븿)
         btnScreenTransOverlay.setOnClickListener {
-            val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val prefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
             val hasUsed = prefs.getBoolean(KEY_HAS_USED_SCREEN_TRANS, false)
 
             // 1. 泥섏쓬 ?ъ슜?섎뒗 寃쎌슦: ?꾩?留??쒖떆 ??由ы꽩 (?쒕퉬???쒖옉 ????
@@ -523,11 +608,11 @@ class MainActivity : AppCompatActivity() {
             } else {
                 // [異붽?] 濡쒓렇??泥댄겕
                 if (auth.currentUser == null) {
-                    Toast.makeText(this, "濡쒓렇?몄쓣 癒쇱? ?댁＜?몄슂", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.main_error_login_required), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 if (!isNetworkAvailable() && currentModelTier != "STANDARD") {
-                    Toast.makeText(this, "?명꽣???곌껐??OK?댁＜?몄슂.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.main_error_network_required), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 pendingAutoMode = false
@@ -537,7 +622,7 @@ class MainActivity : AppCompatActivity() {
 
         // [異붽?] ?먮룞 ?붾㈃踰덉뿭 踰꾪듉 由ъ뒪??
         btnAutoScreenTrans.setOnClickListener {
-            val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val prefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
             val hasUsed = prefs.getBoolean(KEY_HAS_USED_SCREEN_TRANS, false)
 
             if (!hasUsed) {
@@ -550,11 +635,11 @@ class MainActivity : AppCompatActivity() {
                 stopOverlayService()
             } else {
                 if (auth.currentUser == null) {
-                    Toast.makeText(this, "濡쒓렇?몄쓣 癒쇱? ?댁＜?몄슂", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.main_error_login_required), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 if (!isNetworkAvailable() && currentModelTier != "STANDARD") {
-                    Toast.makeText(this, "?명꽣???곌껐??OK?댁＜?몄슂.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.main_error_network_required), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 pendingAutoMode = true
@@ -568,7 +653,26 @@ class MainActivity : AppCompatActivity() {
 
         btnSettings.setOnClickListener {
             val intent = Intent(this, SettingsActivity::class.java)
-            startActivity(intent)
+            settingsLauncher.launch(intent)
+        }
+    }
+
+    private fun setupLanguageDropdown(dropdown: com.google.android.material.textfield.MaterialAutoCompleteTextView) {
+        dropdown.threshold = 0
+        dropdown.keyListener = null
+        dropdown.isCursorVisible = false
+
+        dropdown.setOnClickListener {
+            dropdown.showDropDown()
+        }
+        dropdown.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) dropdown.showDropDown()
+        }
+        dropdown.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP) {
+                dropdown.showDropDown()
+            }
+            false
         }
     }
 
@@ -605,7 +709,7 @@ class MainActivity : AppCompatActivity() {
             sheet.dismiss()
         }
         cardPrecise.setOnClickListener {
-            val warningPrefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val warningPrefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
             if (warningPrefs.getBoolean("skip_pro_screen_warning", false)) {
                 applyModelTierChange("PRO")
                 sheet.dismiss()
@@ -615,11 +719,11 @@ class MainActivity : AppCompatActivity() {
                     .setTitle(getString(R.string.model_precise_warning_title))
                     .setMessage(getString(R.string.model_precise_warning_message))
                     .setView(dontShowAgainView)
-                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                    .setPositiveButton(R.string.common_ok) { _, _ ->
                         if (cb.isChecked) warningPrefs.edit().putBoolean("skip_pro_screen_warning", true).apply()
                         applyModelTierChange("PRO")
                     }
-                    .setNegativeButton(android.R.string.cancel, null)
+                    .setNegativeButton(R.string.common_cancel, null)
                     .show()
                 sheet.dismiss()
             }
@@ -650,9 +754,9 @@ class MainActivity : AppCompatActivity() {
     // [異붽?] ?꾩?留??ㅼ씠?쇰줈洹?
     private fun showGuideDialog() {
         AlertDialog.Builder(this)
-            .setTitle("How to use instant screen translation")
-            .setMessage("1. ?뗫낫湲?踰꾪듉???뚮윭 踰덉뿭???쒖옉?섏꽭??\n2. 珥덈줉???곸뿭???쒕옒洹명븯??踰덉뿭???꾩튂瑜??ㅼ젙?섏꽭??\n3. ?곸뿭??怨좎젙?섎젮硫?'?곸뿭 怨좎젙' 泥댄겕諛뺤뒪瑜? ?대룞?섎젮硫?泥댄겕瑜??댁젣?섏꽭??")
-            .setPositiveButton("OK", null)
+            .setTitle(R.string.main_guide_dialog_title)
+            .setMessage(R.string.main_guide_dialog_message)
+            .setPositiveButton(R.string.common_ok, null)
             .show()
     }
 
@@ -669,6 +773,9 @@ class MainActivity : AppCompatActivity() {
     private fun applyModelTierChange(selectedTier: String) {
         currentModelTier = selectedTier
         updateModelButtonUI()
+        if (currentModelTier == "STANDARD") {
+            maybePrefetchStandardModel(showHint = true)
+        }
 
         if (isServiceRunning) {
             val intent = Intent(this, ScreenTranslationService::class.java).apply {
@@ -680,13 +787,88 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun currentSourceLang(): String {
-        val value = spinnerLang.text?.toString().orEmpty()
-        return if (value.isBlank()) sourceLanguages.first() else value
+        return selectedSourceLangCode
     }
 
     private fun currentTargetLang(): String {
-        val value = spinnerTargetLang.text?.toString().orEmpty()
-        return if (value.isBlank()) targetLanguages.first() else value
+        return selectedTargetLangCode
+    }
+
+    private fun maybePrefetchStandardModel(showHint: Boolean) {
+        if (currentModelTier != "STANDARD") return
+
+        val sourceCode = mapLangCodeForLocalModel(currentSourceLang())
+        val targetCode = mapLangCodeForLocalModel(currentTargetLang())
+        if (sourceCode == null || targetCode == null) return
+
+        val key = "$sourceCode->$targetCode"
+        if (standardModelDownloadReady[key] == true) return
+
+        if (standardModelDownloadInFlight.putIfAbsent(key, true) != null) {
+            if (showHint) {
+                Toast.makeText(this, getString(R.string.standard_langpack_downloading), Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+
+        if (showHint) {
+            Toast.makeText(this, getString(R.string.standard_langpack_downloading), Toast.LENGTH_LONG).show()
+        }
+
+        standardModelPrefetchScope.launch {
+            val options = TranslatorOptions.Builder()
+                .setSourceLanguage(sourceCode)
+                .setTargetLanguage(targetCode)
+                .build()
+            val translator = Translation.getClient(options)
+            try {
+                val conditions = DownloadConditions.Builder().requireWifi().build()
+                translator.downloadModelIfNeeded(conditions).await()
+                standardModelDownloadReady[key] = true
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.standard_langpack_download_complete),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.standard_langpack_download_failed),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } finally {
+                standardModelDownloadInFlight.remove(key)
+                translator.close()
+            }
+        }
+    }
+
+    private fun mapLangCodeForLocalModel(lang: String): String? {
+        return when (lang) {
+            "Japanese" -> TranslateLanguage.JAPANESE
+            "English" -> TranslateLanguage.ENGLISH
+            "Chinese" -> TranslateLanguage.CHINESE
+            "Korean" -> TranslateLanguage.KOREAN
+            else -> null
+        }
+    }
+
+    private fun resolveSavedLanguageCode(
+        raw: String?,
+        options: List<UiLanguageOption>,
+        fallback: String
+    ): String {
+        if (raw.isNullOrBlank()) return fallback
+        val normalized = raw.trim()
+
+        options.firstOrNull { it.ocrCode.equals(normalized, ignoreCase = true) }?.let { return it.ocrCode }
+        options.firstOrNull { it.label == normalized }?.let { return it.ocrCode }
+
+        return fallback
     }
 
     private fun showStoreDialog() {
@@ -694,9 +876,9 @@ class MainActivity : AppCompatActivity() {
 
         if (products.isEmpty()) {
             AlertDialog.Builder(this)
-                .setTitle("Store not ready")
-                .setMessage("?곹뭹 ?뺣낫瑜?遺덈윭?????놁뒿?덈떎.\n\n(Google Play Console ?ㅼ젙??OK?댁＜?몄슂.)")
-                .setPositiveButton("OK", null)
+                .setTitle(R.string.main_store_not_ready_title)
+                .setMessage(R.string.main_store_not_ready_message)
+                .setPositiveButton(R.string.common_ok, null)
                 .show()
             return
         }
@@ -709,12 +891,12 @@ class MainActivity : AppCompatActivity() {
         }.toTypedArray()
 
         AlertDialog.Builder(this)
-            .setTitle("Recharge (Silver/Gold)")
+            .setTitle(R.string.main_recharge_dialog_title)
             .setItems(productNames) { _, which ->
                 val selectedProduct = sortedProducts[which]
                 billingManager.launchPurchaseFlow(this, selectedProduct)
             }
-            .setNegativeButton("Close", null)
+            .setNegativeButton(R.string.common_close, null)
             .show()
     }
 
@@ -736,15 +918,27 @@ class MainActivity : AppCompatActivity() {
                         is UiState.Success<*> -> {
                             // ?쒕퉬?ㅼ뿉??COMPLETE 諛⑹넚??蹂대궡誘濡??ш린??以묐났 泥섎━ 理쒖냼??
                             if(progressBar.visibility == View.VISIBLE) {
-                                updateStatus("Done: " + (state.data as? String ?: ""), false)
+                                val message = state.data as? String
+                                updateStatus(getString(R.string.main_status_done_format, message.orEmpty()), false)
                             }
+                            btnStopWork.visibility = View.GONE
+                            btnStopWork.isEnabled = true
                         }
                         is UiState.Error -> {
-                            updateStatus("Error", false)
+                            updateStatus(getString(R.string.main_status_error), false)
                             btnStopWork.visibility = View.GONE
                             showErrorDialog(state.message, state.onRetry)
                         }
                     }
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    updateNovelRunningStatusUi()
+                    delay(1000)
                 }
             }
         }
@@ -764,7 +958,7 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.userGoldBalance.collect { balance ->
                     if (auth.currentUser != null) {
-                        tvGoldBalance.text = "$balance G"
+                        tvGoldBalance.text = getString(R.string.main_gold_balance_format, balance)
                     }
                 }
             }
@@ -774,11 +968,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun showErrorDialog(message: String, onRetry: (() -> Unit)?) {
         val builder = AlertDialog.Builder(this)
-            .setTitle("Error 諛쒖깮")
+            .setTitle(R.string.main_error_dialog_title)
             .setMessage(message)
-            .setPositiveButton("OK", null)
+            .setPositiveButton(R.string.common_ok, null)
         if (onRetry != null) {
-            builder.setNegativeButton("Retry") { _, _ -> onRetry.invoke() }
+            builder.setNegativeButton(R.string.common_retry) { _, _ -> onRetry.invoke() }
         }
         builder.show()
     }
@@ -812,7 +1006,7 @@ class MainActivity : AppCompatActivity() {
             if (!Settings.canDrawOverlays(this)) {
                 val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
                 startActivityForResult(intent, 1001)
-                Toast.makeText(this, "Allow draw-over-other-apps permission.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.main_overlay_permission_required), Toast.LENGTH_LONG).show()
             } else {
                 requestScreenCapturePermission()
             }
@@ -848,9 +1042,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateServiceButtonUI() {
         if (isServiceRunning) {
-            tvTransTitle.text = "踰덉뿭 以묒?"
+            tvTransTitle.text = getString(R.string.main_status_translating)
             ivTransIcon.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.status_error))
-            tvAutoTransTitle.text = "踰덉뿭 以묒?"
+            tvAutoTransTitle.text = getString(R.string.main_status_translating)
             ivAutoTransIcon.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.status_error))
         } else {
             tvTransTitle.text = getString(R.string.action_screen_trans_instant)
@@ -866,6 +1060,20 @@ class MainActivity : AppCompatActivity() {
         btnSelectOverlay.isEnabled = !isLoading && (auth.currentUser != null)
         spinnerLang.isEnabled = !isLoading
         spinnerTargetLang.isEnabled = !isLoading
+    }
+
+    private fun updateNovelRunningStatusUi() {
+        val novelRunning = TranslationWorkState.isNovelRunning(this)
+        val massRunning = TranslationWorkState.isMassRunning(this)
+
+        if (novelRunning && !massRunning) {
+            tvStatus.visibility = View.VISIBLE
+            tvStatus.text = getString(R.string.main_status_novel_running)
+            progressBar.visibility = View.GONE
+            btnStopWork.visibility = View.GONE
+        } else if (!massRunning) {
+            tvStatus.visibility = View.GONE
+        }
     }
 
     private fun updateUI(isLoggedIn: Boolean) {
@@ -884,7 +1092,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         billingManager.endConnection()
+        standardModelPrefetchScope.cancel()
         super.onDestroy()
     }
 }
+
+
+
 

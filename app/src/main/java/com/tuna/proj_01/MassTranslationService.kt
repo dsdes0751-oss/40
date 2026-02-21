@@ -19,6 +19,9 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Source
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
@@ -26,8 +29,11 @@ import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class MassTranslationService : Service() {
@@ -94,7 +100,9 @@ class MassTranslationService : Service() {
         if (action == ACTION_START) {
             if (TranslationWorkState.isNovelRunning(this) || TranslationWorkState.isMassRunning(this)) {
                 sendBroadcast(Intent(BROADCAST_ERROR).apply {
-                    putExtra("MESSAGE", getString(R.string.translation_running_block_message, TranslationWorkState.runningTaskName(this@MassTranslationService) ?: "?ㅻⅨ 踰덉뿭"))
+                    val runningTask = TranslationWorkState.runningTaskName(this@MassTranslationService)
+                        ?: getString(R.string.translation_running_other_task)
+                    putExtra("MESSAGE", getString(R.string.translation_running_block_message, runningTask))
                 })
                 stopSelf()
                 return START_NOT_STICKY
@@ -111,7 +119,10 @@ class MassTranslationService : Service() {
                 isCancelled = false
                 TranslationWorkState.setMassRunning(this, true)
                 acquireWakeLock()
-                startForeground(NOTIFICATION_ID, createNotification(uris.size, 0, "Preparing...", true))
+                startForeground(
+                    NOTIFICATION_ID,
+                    createNotification(uris.size, 0, getString(R.string.mass_status_preparing), true)
+                )
 
                 startTurnBasedTranslationProcess(uris, bookDir, lang, targetLang, modelTier)
             } else {
@@ -142,7 +153,7 @@ class MassTranslationService : Service() {
 
     private fun stopTranslation() {
         isCancelled = true
-        updateNotification("Finalizing...", 0, 0, false)
+        updateNotification(getString(R.string.mass_status_finalizing), 0, 0, false)
         // 利됱떆 醫낅즺?섏? ?딄퀬, 吏꾪뻾 以묒씤 諛곗튂媛 ?pages???쒓컙??以?(濡쒖쭅?먯꽌 泥섎━)
     }
 
@@ -163,7 +174,7 @@ class MassTranslationService : Service() {
             try {
                 // [STANDARD 紐⑤뱶 ?꾩슜] ?몄뼱???ㅼ슫濡쒕뱶 泥댄겕
                 if (modelTier == "STANDARD") {
-                    updateNotification("Checking offline translation model...", totalCount, 0, true)
+                    updateNotification(getString(R.string.mass_status_checking_offline_model), totalCount, 0, true)
                     prepareLocalModel(lang, targetLang)
                 }
 
@@ -177,7 +188,12 @@ class MassTranslationService : Service() {
                     val currentTurnStartCount = turnIndex * turnSize
 
                     // --- [Step 1] OCR ?섑뻾 ---
-                    updateNotification("Analyzing text positions... (${currentTurnStartCount}/$totalCount)", totalCount, currentTurnStartCount, true)
+                    updateNotification(
+                        getString(R.string.mass_status_analyzing_positions_format, currentTurnStartCount, totalCount),
+                        totalCount,
+                        currentTurnStartCount,
+                        true
+                    )
 
                     val ocrJobs = turnUris.mapIndexed { localIndex, uri ->
                         val globalIndex = currentTurnStartCount + localIndex
@@ -185,7 +201,11 @@ class MassTranslationService : Service() {
                             if (isCancelled) throw CancellationException()
                             val blocks = performSingleOCR(uri, lang, globalIndex, skippedLargeTextPages)
                             if (globalIndex % 3 == 0) {
-                                sendProgressBroadcast(globalIndex, totalCount, "Analyzing text (${globalIndex + 1}/$totalCount)")
+                                sendProgressBroadcast(
+                                    globalIndex,
+                                    totalCount,
+                                    getString(R.string.mass_progress_analyzing_format, globalIndex + 1, totalCount)
+                                )
                             }
                             PageData(uri, blocks, globalIndex)
                         }
@@ -193,7 +213,7 @@ class MassTranslationService : Service() {
                     val pageDataList = ocrJobs.awaitAll()
 
                     // --- [Step 2] 踰덉뿭 (Local vs Server) ---
-                    updateNotification("Translating and rendering images...", totalCount, globalSuccessCount, true)
+                    updateNotification(getString(R.string.mass_status_translating_rendering), totalCount, globalSuccessCount, true)
 
                     val translationBatches = pageDataList.chunked(PARALLEL_BATCH_SIZE)
 
@@ -237,7 +257,7 @@ class MassTranslationService : Service() {
                     globalSuccessCount += results.sum()
 
                     val percent = if (totalCount > 0) (globalSuccessCount * 100) / totalCount else 0
-                    val msg = "Translation in progress ($globalSuccessCount/$totalCount - $percent%)"
+                    val msg = getString(R.string.mass_progress_in_progress_format, globalSuccessCount, totalCount, percent)
                     BookMetadataManager.saveMetadata(bookDir, 0, totalCount, modelTier)
                     repository.updateBookMetadata(bookId)
                     sendBookshelfRefreshBroadcast()
@@ -247,19 +267,28 @@ class MassTranslationService : Service() {
 
                 // --- ?꾩껜 ?꾨즺 ---
                 if (!isCancelled) {
-                    updateNotification("Translation complete! ($totalCount pages)", totalCount, totalCount, false)
+                    updateNotification(
+                        getString(R.string.mass_status_complete_format, totalCount),
+                        totalCount,
+                        totalCount,
+                        false
+                    )
                     val skipMessage = if (skippedLargeTextPages.isNotEmpty()) {
                         val pageLabels = skippedLargeTextPages
                             .distinct()
                             .sorted()
                             .joinToString(",") { (it + 1).toString() }
-                        " 怨쇰룄??湲??媛먯?濡?踰덉뿭 嫄대꼫?: ${pageLabels}?섏씠吏"
+                        getString(R.string.mass_skip_pages_suffix_format, pageLabels)
                     } else {
                         ""
                     }
                     sendBroadcast(Intent(BROADCAST_COMPLETE).apply {
-                        putExtra("MESSAGE", "Completed! ($globalSuccessCount pages).$skipMessage")
+                        putExtra(
+                            "MESSAGE",
+                            getString(R.string.mass_complete_message_format, globalSuccessCount) + skipMessage
+                        )
                     })
+                    syncMassBookTitleWithServerTime(bookDir, modelTier)
                     BookMetadataManager.saveMetadata(bookDir, 0, totalCount, modelTier)
                     repository.updateBookMetadata(bookId)
                     sendBookshelfRefreshBroadcast(forceFinalSync = true)
@@ -267,20 +296,26 @@ class MassTranslationService : Service() {
 
             } catch (e: CancellationException) {
                 Log.d("MassService", "?묒뾽 痍⑥냼??(泥섎━??pages: $globalSuccessCount)")
-                updateNotification("Translation stopped.", totalCount, globalSuccessCount, false)
+                updateNotification(getString(R.string.mass_status_stopped), totalCount, globalSuccessCount, false)
                 recordMassSessionInterrupted(globalSuccessCount, totalCount, modelTier)
                 sendBroadcast(Intent(BROADCAST_COMPLETE).apply {
-                    putExtra("MESSAGE", "Task stopped. (Done: $globalSuccessCount pages)")
+                    putExtra("MESSAGE", getString(R.string.mass_complete_stopped_format, globalSuccessCount))
                 })
+                syncMassBookTitleWithServerTime(bookDir, modelTier)
                 BookMetadataManager.saveMetadata(bookDir, 0, totalCount, modelTier)
                 repository.updateBookMetadata(bookId)
                 sendBookshelfRefreshBroadcast(forceFinalSync = true)
 
             } catch (e: Exception) {
                 Log.e("MassService", "Error", e)
-                updateNotification("Error: ${e.message}", 0, 0, false)
+                updateNotification(
+                    getString(R.string.mass_error_prefix_format, e.message ?: getString(R.string.common_unknown)),
+                    0,
+                    0,
+                    false
+                )
                 sendBroadcast(Intent(BROADCAST_ERROR).apply {
-                    putExtra("MESSAGE", e.message ?: "Unknown error")
+                    putExtra("MESSAGE", e.message ?: getString(R.string.common_unknown))
                 })
             } finally {
                 TranslationDataHolder.clear()
@@ -321,6 +356,87 @@ class MassTranslationService : Service() {
         }
     }
 
+    private suspend fun syncMassBookTitleWithServerTime(bookDir: File, modelTier: String) {
+        val titleTimestamp = resolveMassServerTimestampMillis(modelTier)
+        val formattedTime = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.getDefault()).format(Date(titleTimestamp))
+        val title = getString(R.string.mass_book_title_format, formattedTime)
+
+        try {
+            val metaFile = File(bookDir, "metadata.json")
+            val json = if (metaFile.exists()) JSONObject(metaFile.readText()) else JSONObject()
+            json.put("id", json.optString("id", bookDir.name))
+            json.put("title", title)
+            json.put("lastModified", titleTimestamp)
+            if (!json.has("coverPath")) {
+                val cover = bookDir.listFiles { f ->
+                    val n = f.name.lowercase(Locale.getDefault())
+                    n.endsWith(".jpg") || n.endsWith(".png")
+                }?.sortedBy { it.name }?.firstOrNull()
+                if (cover != null) json.put("coverPath", cover.absolutePath)
+            }
+            metaFile.writeText(json.toString())
+        } catch (e: Exception) {
+            Log.w("MassService", "Failed to sync mass book title", e)
+        }
+    }
+
+    private suspend fun resolveMassServerTimestampMillis(modelTier: String): Long {
+        val uid = auth.currentUser?.uid ?: return System.currentTimeMillis()
+        val massRegex = Regex("Manga(?: Batch)? Translation \\((\\d+) pages\\) \\[([A-Z]+)]")
+        val interruptedRegex = Regex("Manga batch interrupted \\((\\d+)/(\\d+) pages\\) \\[([A-Z]+)]")
+        val normalizedTier = modelTier.uppercase(Locale.getDefault())
+
+        return try {
+            val snapshot = db.collection("users")
+                .document(uid)
+                .collection("transactions")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(80)
+                .get()
+                .await()
+
+            val tierMatchedMass = snapshot.documents.firstOrNull { doc ->
+                val desc = doc.getString("description").orEmpty()
+                val match = massRegex.find(desc) ?: return@firstOrNull false
+                val tier = match.groupValues.getOrNull(2).orEmpty().uppercase(Locale.getDefault())
+                tier == normalizedTier
+            }?.getDate("timestamp")?.time
+            if (tierMatchedMass != null) return tierMatchedMass
+
+            val tierMatchedInterrupted = snapshot.documents.firstOrNull { doc ->
+                val desc = doc.getString("description").orEmpty()
+                val match = interruptedRegex.find(desc) ?: return@firstOrNull false
+                val tier = match.groupValues.getOrNull(3).orEmpty().uppercase(Locale.getDefault())
+                tier == normalizedTier
+            }?.getDate("timestamp")?.time
+            if (tierMatchedInterrupted != null) return tierMatchedInterrupted
+
+            val anyMass = snapshot.documents.firstOrNull { doc ->
+                massRegex.containsMatchIn(doc.getString("description").orEmpty())
+            }?.getDate("timestamp")?.time
+            if (anyMass != null) return anyMass
+
+            fetchServerNowMillis(uid)
+        } catch (e: Exception) {
+            Log.w("MassService", "Failed to resolve mass timestamp", e)
+            fetchServerNowMillis(uid)
+        }
+    }
+
+    private suspend fun fetchServerNowMillis(uid: String): Long {
+        return try {
+            val ref = db.collection("users")
+                .document(uid)
+                .collection("client_sync")
+                .document("clock")
+            ref.set(mapOf("serverTime" to FieldValue.serverTimestamp()), SetOptions.merge()).await()
+            ref.get(Source.SERVER).await().getDate("serverTime")?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            Log.w("MassService", "Failed to fetch server time", e)
+            System.currentTimeMillis()
+        }
+    }
+
     private suspend fun prepareLocalModel(sourceLang: String, targetLang: String) {
         val srcCode = mapLangCode(sourceLang)
         val tgtCode = mapLangCode(targetLang)
@@ -354,7 +470,7 @@ class MassTranslationService : Service() {
                     val result = translator.translate(block.originalText).await()
                     block.translatedText = result
                 } catch (e: Exception) {
-                    block.translatedText = "Translation failed"
+                    block.translatedText = getString(R.string.mass_translation_failed)
                 }
             }
         } finally {

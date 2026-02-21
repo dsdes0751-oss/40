@@ -13,13 +13,17 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
-class VnGameTranslationActivity : AppCompatActivity() {
+class VnGameTranslationActivity : LocalizedActivity() {
+    companion object {
+        private const val PREF_APP = "app_prefs"
+        private const val KEY_VN_SOURCE_LANG_CODE = "vn_source_lang_code"
+        private const val KEY_VN_TARGET_LANG_CODE = "vn_target_lang_code"
+    }
 
     private data class VnLangOption(
         val label: String,
@@ -33,6 +37,8 @@ class VnGameTranslationActivity : AppCompatActivity() {
     private lateinit var tvPercent: TextView
     private lateinit var tvRemainingChars: TextView
     private lateinit var mediaProjectionManager: MediaProjectionManager
+    private var selectedSourceLangCode: String = "Japanese"
+    private var selectedTargetLangCode: String = "Korean"
 
     private val sourceLangOptions by lazy {
         listOf(
@@ -109,7 +115,8 @@ class VnGameTranslationActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
-                val runningTask = TranslationWorkState.runningTaskName(this) ?: "?ㅻⅨ 踰덉뿭"
+                val runningTask = TranslationWorkState.runningTaskName(this)
+                    ?: getString(R.string.translation_running_other_task)
                 Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
@@ -123,13 +130,45 @@ class VnGameTranslationActivity : AppCompatActivity() {
     }
 
     private fun setupDropdowns() {
+        val prefs = getSharedPreferences(PREF_APP, Context.MODE_PRIVATE)
         val sourceLabels = sourceLangOptions.map { it.label }
         spinnerSourceLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, sourceLabels))
-        spinnerSourceLang.setText(sourceLabels.firstOrNull().orEmpty(), false)
-
         val targetLabels = targetLangOptions.map { it.label }
         spinnerTargetLang.setAdapter(ArrayAdapter(this, R.layout.item_dropdown_option, targetLabels))
-        spinnerTargetLang.setText(targetLabels.firstOrNull().orEmpty(), false)
+
+        selectedSourceLangCode = resolveSavedLangCode(
+            raw = prefs.getString(KEY_VN_SOURCE_LANG_CODE, null),
+            options = sourceLangOptions,
+            fallback = sourceLangOptions.first().ocrLang
+        )
+        selectedTargetLangCode = resolveSavedLangCode(
+            raw = prefs.getString(KEY_VN_TARGET_LANG_CODE, null),
+            options = targetLangOptions,
+            fallback = targetLangOptions.first().ocrLang
+        )
+
+        val initialSource = sourceLangOptions.firstOrNull { it.ocrLang == selectedSourceLangCode }
+            ?: sourceLangOptions.first()
+        val initialTarget = targetLangOptions.firstOrNull { it.ocrLang == selectedTargetLangCode }
+            ?: targetLangOptions.first()
+        spinnerSourceLang.setText(initialSource.label, false)
+        spinnerTargetLang.setText(initialTarget.label, false)
+
+        spinnerSourceLang.setOnItemClickListener { _, _, position, _ ->
+            val selected = sourceLangOptions.getOrNull(position)
+                ?: sourceLangOptions.firstOrNull { it.label == spinnerSourceLang.text?.toString().orEmpty() }
+                ?: sourceLangOptions.first()
+            selectedSourceLangCode = selected.ocrLang
+            prefs.edit().putString(KEY_VN_SOURCE_LANG_CODE, selectedSourceLangCode).apply()
+        }
+
+        spinnerTargetLang.setOnItemClickListener { _, _, position, _ ->
+            val selected = targetLangOptions.getOrNull(position)
+                ?: targetLangOptions.firstOrNull { it.label == spinnerTargetLang.text?.toString().orEmpty() }
+                ?: targetLangOptions.first()
+            selectedTargetLangCode = selected.ocrLang
+            prefs.edit().putString(KEY_VN_TARGET_LANG_CODE, selectedTargetLangCode).apply()
+        }
     }
 
     private fun refreshBalance() {
@@ -169,9 +208,9 @@ class VnGameTranslationActivity : AppCompatActivity() {
     }
 
     private fun startVnFastService(resultCode: Int, data: Intent) {
-        val sourceOption = sourceLangOptions.firstOrNull { it.label == spinnerSourceLang.text.toString() }
+        val sourceOption = sourceLangOptions.firstOrNull { it.ocrLang == selectedSourceLangCode }
             ?: sourceLangOptions.first()
-        val targetOption = targetLangOptions.firstOrNull { it.label == spinnerTargetLang.text.toString() }
+        val targetOption = targetLangOptions.firstOrNull { it.ocrLang == selectedTargetLangCode }
             ?: targetLangOptions.first()
 
         val intent = Intent(this, ScreenTranslationService::class.java).apply {
@@ -192,4 +231,20 @@ class VnGameTranslationActivity : AppCompatActivity() {
         }
         moveTaskToBack(true)
     }
+
+    private fun resolveSavedLangCode(
+        raw: String?,
+        options: List<VnLangOption>,
+        fallback: String
+    ): String {
+        if (raw.isNullOrBlank()) return fallback
+        val normalized = raw.trim()
+        options.firstOrNull { it.ocrLang.equals(normalized, ignoreCase = true) }?.let { return it.ocrLang }
+        options.firstOrNull { it.label == normalized }?.let { return it.ocrLang }
+        return fallback
+    }
 }
+
+
+
+
