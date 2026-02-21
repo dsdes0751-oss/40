@@ -148,14 +148,14 @@ class MainActivity : LocalizedActivity() {
         if (!isGranted) {
             showPermissionDeniedDialog()
         } else {
-            Toast.makeText(this, getString(R.string.main_notification_permission_granted), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.main_notification_permission_granted)
         }
     }
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isNotEmpty()) {
             if (!isNetworkAvailable()) {
-                Toast.makeText(this, getString(R.string.main_error_network_required), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.main_error_network_required)
                 updateStatus(getString(R.string.main_error_network_required))
                 return@registerForActivityResult
             }
@@ -163,7 +163,7 @@ class MainActivity : LocalizedActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, getString(R.string.main_notification_permission_missing_hint), Toast.LENGTH_LONG).show()
+                    showMessageDialog(R.string.main_notification_permission_missing_hint)
                 }
             }
 
@@ -173,7 +173,7 @@ class MainActivity : LocalizedActivity() {
                 if (TranslationWorkState.isAnyTranslationRunning(this)) {
                     val runningTask = TranslationWorkState.runningTaskName(this)
                         ?: getString(R.string.translation_running_other_task)
-                    Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
+                    showMessageDialog(getString(R.string.translation_running_block_message, runningTask))
                     return@registerForActivityResult
                 }
 
@@ -197,7 +197,7 @@ class MainActivity : LocalizedActivity() {
                 val account = task.getResult(ApiException::class.java)!!
                 val idToken = account.idToken
                 if (idToken.isNullOrBlank()) {
-                    Toast.makeText(this, getString(R.string.main_google_login_missing_token), Toast.LENGTH_LONG).show()
+                    showMessageDialog(R.string.main_google_login_missing_token)
                     return@registerForActivityResult
                 }
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
@@ -207,7 +207,7 @@ class MainActivity : LocalizedActivity() {
                         updateUI(true)
                     } else {
                         Log.e(TAG, "Firebase sign-in with Google credential failed", task.exception)
-                        Toast.makeText(this, getString(R.string.main_firebase_login_failed), Toast.LENGTH_LONG).show()
+                        showMessageDialog(R.string.main_firebase_login_failed)
                     }
                 }
             } catch (e: ApiException) {
@@ -217,7 +217,7 @@ class MainActivity : LocalizedActivity() {
                 } else {
                     getString(R.string.main_google_login_failed_code, e.statusCode)
                 }
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                showMessageDialog(message)
             }
         }
     }
@@ -226,7 +226,7 @@ class MainActivity : LocalizedActivity() {
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             startOverlayService(result.resultCode, result.data!!)
         } else {
-            Toast.makeText(this, getString(R.string.main_screen_capture_permission_denied), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.main_screen_capture_permission_denied)
         }
     }
 
@@ -374,11 +374,7 @@ class MainActivity : LocalizedActivity() {
         }
 
         if (rejectedCount > 0) {
-            Toast.makeText(
-                this,
-                getString(R.string.main_error_file_size_rejected, rejectedCount, MAX_FILE_SIZE_MB),
-                Toast.LENGTH_LONG
-            ).show()
+            showMessageDialog(getString(R.string.main_error_file_size_rejected, rejectedCount, MAX_FILE_SIZE_MB))
         }
         return validList
     }
@@ -536,7 +532,7 @@ class MainActivity : LocalizedActivity() {
         // [蹂寃? ???踰덉뿭: 濡쒓렇??泥댄겕 + ADVANCED 寃쎄퀬 ?쒖젏 ?대룞 (?대?吏 遺덈윭?ㅺ린 踰꾪듉 ?대┃ ??
         btnSelectOverlay.setOnClickListener {
             if (auth.currentUser == null) {
-                Toast.makeText(this, getString(R.string.main_error_login_required), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.main_error_login_required)
                 return@setOnClickListener
             }
 
@@ -566,7 +562,7 @@ class MainActivity : LocalizedActivity() {
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
                 val runningTask = TranslationWorkState.runningTaskName(this)
                     ?: getString(R.string.translation_running_other_task)
-                Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
+                showMessageDialog(getString(R.string.translation_running_block_message, runningTask))
                 return@setOnClickListener
             }
             startActivity(Intent(this, NovelTranslationActivity::class.java))
@@ -576,7 +572,7 @@ class MainActivity : LocalizedActivity() {
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
                 val runningTask = TranslationWorkState.runningTaskName(this)
                     ?: getString(R.string.translation_running_other_task)
-                Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
+                showMessageDialog(getString(R.string.translation_running_block_message, runningTask))
                 return@setOnClickListener
             }
             startActivity(Intent(this, VnGameTranslationActivity::class.java))
@@ -608,11 +604,11 @@ class MainActivity : LocalizedActivity() {
             } else {
                 // [異붽?] 濡쒓렇??泥댄겕
                 if (auth.currentUser == null) {
-                    Toast.makeText(this, getString(R.string.main_error_login_required), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.main_error_login_required)
                     return@setOnClickListener
                 }
                 if (!isNetworkAvailable() && currentModelTier != "STANDARD") {
-                    Toast.makeText(this, getString(R.string.main_error_network_required), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.main_error_network_required)
                     return@setOnClickListener
                 }
                 pendingAutoMode = false
@@ -635,11 +631,11 @@ class MainActivity : LocalizedActivity() {
                 stopOverlayService()
             } else {
                 if (auth.currentUser == null) {
-                    Toast.makeText(this, getString(R.string.main_error_login_required), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.main_error_login_required)
                     return@setOnClickListener
                 }
                 if (!isNetworkAvailable() && currentModelTier != "STANDARD") {
-                    Toast.makeText(this, getString(R.string.main_error_network_required), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.main_error_network_required)
                     return@setOnClickListener
                 }
                 pendingAutoMode = true
@@ -806,13 +802,13 @@ class MainActivity : LocalizedActivity() {
 
         if (standardModelDownloadInFlight.putIfAbsent(key, true) != null) {
             if (showHint) {
-                Toast.makeText(this, getString(R.string.standard_langpack_downloading), Toast.LENGTH_LONG).show()
+                showMessageDialog(R.string.standard_langpack_downloading)
             }
             return
         }
 
         if (showHint) {
-            Toast.makeText(this, getString(R.string.standard_langpack_downloading), Toast.LENGTH_LONG).show()
+            showMessageDialog(R.string.standard_langpack_downloading)
         }
 
         standardModelPrefetchScope.launch {
@@ -826,19 +822,11 @@ class MainActivity : LocalizedActivity() {
                 translator.downloadModelIfNeeded(conditions).await()
                 standardModelDownloadReady[key] = true
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        getString(R.string.standard_langpack_download_complete),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    showMessageDialog(R.string.standard_langpack_download_complete)
                 }
             } catch (_: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        getString(R.string.standard_langpack_download_failed),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    showMessageDialog(R.string.standard_langpack_download_failed)
                 }
             } finally {
                 standardModelDownloadInFlight.remove(key)
@@ -1006,7 +994,7 @@ class MainActivity : LocalizedActivity() {
             if (!Settings.canDrawOverlays(this)) {
                 val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
                 startActivityForResult(intent, 1001)
-                Toast.makeText(this, getString(R.string.main_overlay_permission_required), Toast.LENGTH_LONG).show()
+                showMessageDialog(R.string.main_overlay_permission_required)
             } else {
                 requestScreenCapturePermission()
             }

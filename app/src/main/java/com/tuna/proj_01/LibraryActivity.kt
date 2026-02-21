@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.core.net.toUri
@@ -39,7 +38,7 @@ class LibraryActivity : LocalizedActivity() {
             onBookmarkClick = { book -> viewModel.toggleBookmark(book) },
             onDeleteLongPress = { book ->
                 if (book.isBookmarked) {
-                    Toast.makeText(this, getString(R.string.viewer_delete_block_bookmarked), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.viewer_delete_block_bookmarked)
                 } else {
                     showDeleteConfirmDialog(book)
                 }
@@ -101,7 +100,7 @@ class LibraryActivity : LocalizedActivity() {
             intent.putExtra("start_position", book.lastReadIndex)
             startActivity(intent)
         } else {
-            Toast.makeText(this, getString(R.string.library_no_readable_content), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.library_no_readable_content)
         }
     }
 
@@ -111,7 +110,7 @@ class LibraryActivity : LocalizedActivity() {
             .setMessage(getString(R.string.library_delete_book_message, book.title))
             .setPositiveButton(R.string.common_delete) { _, _ ->
                 viewModel.deleteBook(book)
-                Toast.makeText(this, getString(R.string.library_delete_done), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.library_delete_done)
             }
             .setNegativeButton(R.string.common_cancel, null)
             .show()

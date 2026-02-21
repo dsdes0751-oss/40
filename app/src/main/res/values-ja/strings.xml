@@ -1,9 +1,9 @@
 ﻿<resources>
     <string name="app_name">マンガ翻訳</string>
     <string-array name="app_language_options">
-        <item>韓国語</item>
+        <item>한국어</item>
         <item>日本語</item>
-                <item>英語</item>
+                <item>English</item>
     </string-array>
     <string-array name="theme_options">
         <item>システム設定に従う</item>
@@ -51,10 +51,10 @@
     <string name="settings_language_label">言語</string>
     <string name="settings_language_restart_required_title">再起動が必要です</string>
     <string name="settings_language_restart_required_message">言語変更を適用するには、アプリの再起動が必要です。</string>
-    <string name="language_name_korean">韓国語</string>
+    <string name="language_name_korean">한국어</string>
     <string name="language_name_japanese">日本語</string>
-    <string name="language_name_chinese">中国語</string>
-    <string name="language_name_english">英語</string>
+    <string name="language_name_chinese">中文</string>
+    <string name="language_name_english">English</string>
     <string name="common_cancel">キャンセル</string>
     <string name="common_close">閉じる</string>
     <string name="common_ok">確認</string>

@@ -1,8 +1,8 @@
 ﻿<resources>
     <string-array name="app_language_options">
         <item>한국어</item>
-        <item>일본어</item>
-                <item>영어</item>
+        <item>日本語</item>
+                <item>English</item>
     </string-array>
     <string-array name="theme_options">
         <item>시스템 설정 따름</item>
@@ -12,8 +12,8 @@
     <string name="settings_language">언어 설정</string>
     <string name="settings_language_label">언어</string>
     <string name="language_name_korean">한국어</string>
-    <string name="language_name_japanese">일본어</string>
-    <string name="language_name_chinese">중국어</string>
-    <string name="language_name_english">영어</string>
+    <string name="language_name_japanese">日本語</string>
+    <string name="language_name_chinese">中文</string>
+    <string name="language_name_english">English</string>
 </resources>
 

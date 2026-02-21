@@ -13,9 +13,10 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.View
+import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
@@ -23,6 +24,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.card.MaterialCardView
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -57,6 +60,17 @@ class SettingsActivity : LocalizedActivity() {
         val tier: String
     )
 
+    private data class SelectionOption(
+        val title: String,
+        val subtitle: String
+    )
+
+    private data class SelectionOptionHolder(
+        val card: MaterialCardView,
+        val indicator: FrameLayout,
+        val check: TextView
+    )
+
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
     private lateinit var historyAdapter: SilverHistoryAdapter
@@ -66,7 +80,7 @@ class SettingsActivity : LocalizedActivity() {
         if (isGranted) {
             exportAllBooks()
         } else {
-            Toast.makeText(this, getString(R.string.settings_storage_permission_required), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.settings_storage_permission_required)
         }
     }
 
@@ -479,7 +493,7 @@ class SettingsActivity : LocalizedActivity() {
             if (!rootDir.exists()) {
                 withContext(Dispatchers.Main) {
                     progressDialog.dismiss()
-                    Toast.makeText(this@SettingsActivity, getString(R.string.settings_no_books_to_export), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.settings_no_books_to_export)
                 }
                 return@launch
             }
@@ -540,9 +554,9 @@ class SettingsActivity : LocalizedActivity() {
             withContext(Dispatchers.Main) {
                 progressDialog.dismiss()
                 if (successCount > 0) {
-                    Toast.makeText(this@SettingsActivity, getString(R.string.settings_export_success_format, successCount), Toast.LENGTH_LONG).show()
+                    showMessageDialog(getString(R.string.settings_export_success_format, successCount))
                 } else {
-                    Toast.makeText(this@SettingsActivity, getString(R.string.settings_no_images_to_export), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.settings_no_images_to_export)
                 }
             }
         }
@@ -558,7 +572,7 @@ class SettingsActivity : LocalizedActivity() {
                 val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
                 val googleSignInClient = GoogleSignIn.getClient(this, gso)
                 googleSignInClient.signOut().addOnCompleteListener {
-                    Toast.makeText(this, getString(R.string.settings_logged_out), Toast.LENGTH_SHORT).show()
+                    showMessageDialog(R.string.settings_logged_out)
                     val intent = Intent(this, MainActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
@@ -577,37 +591,137 @@ class SettingsActivity : LocalizedActivity() {
         )
         val currentMode = AppThemeManager.getThemeMode(this)
         val checked = themeModes.indexOf(currentMode).takeIf { it >= 0 } ?: 0
+        val options = listOf(
+            SelectionOption(themes.getOrElse(0) { "" }, getString(R.string.settings_theme_system_desc)),
+            SelectionOption(themes.getOrElse(1) { "" }, getString(R.string.settings_theme_light_desc)),
+            SelectionOption(themes.getOrElse(2) { "" }, getString(R.string.settings_theme_dark_desc))
+        )
 
-        AlertDialog.Builder(this)
-            .setTitle(R.string.settings_theme)
-            .setSingleChoiceItems(themes, checked) { dialog, which ->
-                AppThemeManager.setThemeMode(this, themeModes[which])
-                dialog.dismiss()
-            }
-            .setNegativeButton(R.string.common_cancel, null)
-            .show()
+        showSelectionBottomSheet(
+            title = getString(R.string.settings_theme),
+            subtitle = getString(R.string.settings_theme_sheet_subtitle),
+            options = options,
+            checked = checked
+        ) { which ->
+            AppThemeManager.setThemeMode(this, themeModes[which])
+        }
     }
 
     private fun showLanguageDialog() {
-        val languageOptions = resources.getStringArray(R.array.app_language_options)
         val languageTags = AppLanguageManager.getSupportedLanguageTags()
         val currentTag = AppLanguageManager.getSelectedLanguageTag(this)
         val checked = languageTags.indexOfFirst { currentTag.startsWith(it) }.coerceAtLeast(0)
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.settings_language)
-            .setSingleChoiceItems(languageOptions, checked) { dialog, which ->
-                val selectedTag = languageTags[which]
-                val changed = AppLanguageManager.setLanguage(this, selectedTag, applyNow = false)
-                dialog.dismiss()
-                if (changed) {
-                    showRestartRequiredDialog(selectedTag)
-                } else {
-                    updateLanguageRow()
+        val options = languageTags.map { tag ->
+            SelectionOption(
+                title = languageEndonym(tag),
+                subtitle = when {
+                    tag.startsWith("ko") -> getString(R.string.settings_language_desc_korean)
+                    tag.startsWith("ja") -> getString(R.string.settings_language_desc_japanese)
+                    else -> getString(R.string.settings_language_desc_english)
                 }
+            )
+        }
+
+        showSelectionBottomSheet(
+            title = getString(R.string.settings_language),
+            subtitle = getString(R.string.settings_language_sheet_subtitle),
+            options = options,
+            checked = checked
+        ) { which ->
+            val selectedTag = languageTags[which]
+            val changed = AppLanguageManager.setLanguage(this, selectedTag, applyNow = false)
+            if (changed) {
+                showRestartRequiredDialog(selectedTag)
+            } else {
+                updateLanguageRow()
             }
-            .setNegativeButton(R.string.common_cancel, null)
-            .show()
+        }
+    }
+
+    private fun languageEndonym(tag: String): String {
+        return when {
+            tag.startsWith("ko") -> "한국어"
+            tag.startsWith("ja") -> "日本語"
+            tag.startsWith("en") -> "English"
+            tag.startsWith("zh") -> "中文"
+            else -> tag
+        }
+    }
+
+    private fun showSelectionBottomSheet(
+        title: String,
+        subtitle: String,
+        options: List<SelectionOption>,
+        checked: Int,
+        onSelected: (Int) -> Unit
+    ) {
+        val dialog = BottomSheetDialog(this)
+        val contentView = layoutInflater.inflate(R.layout.dialog_settings_selection_sheet, null)
+        dialog.setContentView(contentView)
+
+        val titleView = contentView.findViewById<TextView>(R.id.tv_selection_sheet_title)
+        val subtitleView = contentView.findViewById<TextView>(R.id.tv_selection_sheet_subtitle)
+        val optionsContainer = contentView.findViewById<LinearLayout>(R.id.layout_selection_options)
+        val closeButton = contentView.findViewById<Button>(R.id.btn_selection_close)
+
+        titleView.text = title
+        subtitleView.text = subtitle
+
+        val holders = mutableListOf<SelectionOptionHolder>()
+
+        options.forEachIndexed { index, option ->
+            val itemView = layoutInflater.inflate(
+                R.layout.item_settings_selection_option,
+                optionsContainer,
+                false
+            )
+            val card = itemView.findViewById<MaterialCardView>(R.id.card_option)
+            val optionTitle = itemView.findViewById<TextView>(R.id.tv_option_title)
+            val optionSubtitle = itemView.findViewById<TextView>(R.id.tv_option_subtitle)
+            val indicator = itemView.findViewById<FrameLayout>(R.id.layout_option_indicator)
+            val checkMark = itemView.findViewById<TextView>(R.id.tv_option_check)
+
+            optionTitle.text = option.title
+            optionSubtitle.text = option.subtitle
+            optionSubtitle.visibility = if (option.subtitle.isBlank()) View.GONE else View.VISIBLE
+
+            val holder = SelectionOptionHolder(card, indicator, checkMark)
+            holders += holder
+            applySelectionStyle(holder, index == checked)
+
+            card.setOnClickListener {
+                holders.forEachIndexed { selectedIndex, current ->
+                    applySelectionStyle(current, selectedIndex == index)
+                }
+                dialog.dismiss()
+                onSelected(index)
+            }
+
+            optionsContainer.addView(itemView)
+        }
+
+        closeButton.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun applySelectionStyle(holder: SelectionOptionHolder, selected: Boolean) {
+        if (selected) {
+            holder.card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.bg_surface))
+            holder.card.strokeColor = ContextCompat.getColor(this, R.color.brand_primary)
+            holder.card.strokeWidth = dpToPx(2)
+            holder.indicator.setBackgroundResource(R.drawable.bg_selection_indicator_selected)
+            holder.check.visibility = View.VISIBLE
+        } else {
+            holder.card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.bg_surface_alt))
+            holder.card.strokeColor = ContextCompat.getColor(this, R.color.border_subtle)
+            holder.card.strokeWidth = dpToPx(1)
+            holder.indicator.setBackgroundResource(R.drawable.bg_selection_indicator_unselected)
+            holder.check.visibility = View.GONE
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
     }
 
     private fun showRestartRequiredDialog(languageTag: String) {
@@ -626,12 +740,7 @@ class SettingsActivity : LocalizedActivity() {
     }
 
     private fun updateLanguageRow() {
-        val currentTag = AppLanguageManager.getSelectedLanguageTag(this)
-        tvLanguageCurrent.text = when {
-            currentTag.startsWith("ko") -> getString(R.string.language_name_korean)
-            currentTag.startsWith("ja") -> getString(R.string.language_name_japanese)
-            else -> getString(R.string.language_name_english)
-        }
+        tvLanguageCurrent.text = getString(R.string.settings_language_fixed_label)
     }
 
     private fun sendFeedbackEmail() {
@@ -643,7 +752,7 @@ class SettingsActivity : LocalizedActivity() {
         try {
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.settings_no_email_app), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.settings_no_email_app)
         }
     }
 
@@ -651,7 +760,7 @@ class SettingsActivity : LocalizedActivity() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("UID", text)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, getString(R.string.settings_uid_copied), Toast.LENGTH_SHORT).show()
+        showMessageDialog(R.string.settings_uid_copied)
     }
 }
 

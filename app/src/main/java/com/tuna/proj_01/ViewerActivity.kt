@@ -22,7 +22,6 @@ import android.widget.ImageView
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import androidx.core.view.ViewCompat
@@ -55,7 +54,7 @@ class ViewerActivity : LocalizedActivity() {
         if (isGranted) {
             exportCurrentBook()
         } else {
-            Toast.makeText(this, getString(R.string.settings_storage_permission_required), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.settings_storage_permission_required)
         }
     }
 
@@ -286,7 +285,7 @@ class ViewerActivity : LocalizedActivity() {
             isShowOriginal = isChecked
             saveViewerSettings()
             if (isChecked) {
-                Toast.makeText(this, getString(R.string.viewer_original_not_supported), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.viewer_original_not_supported)
             }
         }
 
@@ -386,7 +385,7 @@ class ViewerActivity : LocalizedActivity() {
         lifecycleScope.launch {
             val metadata = withContext(Dispatchers.IO) { BookMetadataManager.loadMetadata(folder) }
             if (metadata.isBookmarked) {
-                Toast.makeText(this@ViewerActivity, getString(R.string.viewer_delete_block_bookmarked), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.viewer_delete_block_bookmarked)
                 return@launch
             }
             AlertDialog.Builder(this@ViewerActivity)
@@ -396,7 +395,7 @@ class ViewerActivity : LocalizedActivity() {
                     lifecycleScope.launch {
                         val deleted = BookFileManager.deleteCurrentBook(folder)
                         if (!deleted) {
-                            Toast.makeText(this@ViewerActivity, getString(R.string.viewer_delete_failed), Toast.LENGTH_SHORT).show()
+                            showMessageDialog(R.string.viewer_delete_failed)
                             return@launch
                         }
                         navigateToLibraryAfterDelete()
@@ -420,14 +419,14 @@ class ViewerActivity : LocalizedActivity() {
                     .setView(input)
                     .setPositiveButton(R.string.common_delete) { _, _ ->
                         if (input.text?.toString()?.trim() != getString(R.string.viewer_delete_all_keyword)) {
-                            Toast.makeText(this@ViewerActivity, getString(R.string.viewer_delete_all_keyword_mismatch), Toast.LENGTH_SHORT).show()
+                            showMessageDialog(R.string.viewer_delete_all_keyword_mismatch)
                             return@setPositiveButton
                         }
                         lifecycleScope.launch {
                             val deleted = BookFileManager.deleteAllBooks(File(filesDir, "Books"), keepBookmarked = false)
                             TextViewerSettingsStore.clearAllBookPositions(this@ViewerActivity)
                             ImageDataHolder.clear()
-                            Toast.makeText(this@ViewerActivity, getString(R.string.viewer_delete_all_done, deleted), Toast.LENGTH_SHORT).show()
+                            showMessageDialog(getString(R.string.viewer_delete_all_done, deleted))
                             navigateToLibraryAfterDelete()
                         }
                     }
@@ -551,7 +550,7 @@ class ViewerActivity : LocalizedActivity() {
     private fun exportCurrentBook() {
         val folder = currentBookFolder
         if (folder == null || !folder.exists()) {
-            Toast.makeText(this, getString(R.string.settings_no_books_to_export), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.settings_no_books_to_export)
             return
         }
         val progressDialog = AlertDialog.Builder(this)
@@ -564,13 +563,9 @@ class ViewerActivity : LocalizedActivity() {
             val result = BookFileManager.exportCurrentBook(this@ViewerActivity, folder)
             progressDialog.dismiss()
             if (result.successCount > 0) {
-                Toast.makeText(
-                    this@ViewerActivity,
-                    getString(R.string.settings_export_success_format, result.successCount),
-                    Toast.LENGTH_LONG
-                ).show()
+                showMessageDialog(getString(R.string.settings_export_success_format, result.successCount))
             } else {
-                Toast.makeText(this@ViewerActivity, getString(R.string.settings_no_images_to_export), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.settings_no_images_to_export)
             }
         }
     }

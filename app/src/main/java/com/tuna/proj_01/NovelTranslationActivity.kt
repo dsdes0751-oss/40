@@ -9,7 +9,6 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -60,13 +59,13 @@ class NovelTranslationActivity : LocalizedActivity() {
     private val txtPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@registerForActivityResult
         if (!isTxtFile(uri)) {
-            Toast.makeText(this, getString(R.string.novel_translation_txt_only), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.novel_translation_txt_only)
             return@registerForActivityResult
         }
 
         val text = readTextFromUri(uri)
         if (text.isNullOrEmpty()) {
-            Toast.makeText(this, getString(R.string.novel_translation_empty_file), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.novel_translation_empty_file)
             return@registerForActivityResult
         }
         etInput.setText(text)
@@ -92,23 +91,23 @@ class NovelTranslationActivity : LocalizedActivity() {
 
         btnComplete.setOnClickListener {
             if (FirebaseAuth.getInstance().currentUser == null) {
-                Toast.makeText(this, getString(R.string.novel_translation_login_needed), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.novel_translation_login_needed)
                 return@setOnClickListener
             }
 
             val source = etInput.text.toString()
             if (source.isBlank()) {
-                Toast.makeText(this, getString(R.string.novel_translation_input_needed), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.novel_translation_input_needed)
                 return@setOnClickListener
             }
 
             if (source.length <= 100) {
-                Toast.makeText(this, getString(R.string.novel_translation_min_length), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.novel_translation_min_length)
                 return@setOnClickListener
             }
 
             if (source.length > 20000) {
-                Toast.makeText(this, getString(R.string.novel_translation_max_length), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.novel_translation_max_length)
                 return@setOnClickListener
             }
 
@@ -182,7 +181,7 @@ class NovelTranslationActivity : LocalizedActivity() {
         if (TranslationWorkState.isAnyTranslationRunning(this)) {
             val runningTask = TranslationWorkState.runningTaskName(this)
                 ?: getString(R.string.translation_running_other_task)
-            Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
+            showMessageDialog(getString(R.string.translation_running_block_message, runningTask))
             return
         }
 
@@ -194,11 +193,7 @@ class NovelTranslationActivity : LocalizedActivity() {
             if (user == null) {
                 progressBar.visibility = View.GONE
                 btnComplete.isEnabled = true
-                Toast.makeText(
-                    this@NovelTranslationActivity,
-                    getString(R.string.novel_translation_login_needed),
-                    Toast.LENGTH_SHORT
-                ).show()
+                showMessageDialog(R.string.novel_translation_login_needed)
                 return@launch
             }
 
@@ -216,22 +211,14 @@ class NovelTranslationActivity : LocalizedActivity() {
             if (currentSilver == null) {
                 progressBar.visibility = View.GONE
                 btnComplete.isEnabled = true
-                Toast.makeText(
-                    this@NovelTranslationActivity,
-                    getString(R.string.novel_translation_balance_check_failed),
-                    Toast.LENGTH_SHORT
-                ).show()
+                showMessageDialog(R.string.novel_translation_balance_check_failed)
                 return@launch
             }
 
             if (currentSilver < requiredCoin) {
                 progressBar.visibility = View.GONE
                 btnComplete.isEnabled = true
-                Toast.makeText(
-                    this@NovelTranslationActivity,
-                    getString(R.string.novel_translation_insufficient_silver_detail, requiredCoin, currentSilver),
-                    Toast.LENGTH_LONG
-                ).show()
+                showMessageDialog(getString(R.string.novel_translation_insufficient_silver_detail, requiredCoin, currentSilver))
                 return@launch
             }
 
@@ -243,11 +230,7 @@ class NovelTranslationActivity : LocalizedActivity() {
             }
 
             ContextCompat.startForegroundService(this@NovelTranslationActivity, intent)
-            Toast.makeText(
-                this@NovelTranslationActivity,
-                getString(R.string.novel_translation_started_background),
-                Toast.LENGTH_LONG
-            ).show()
+            showMessageDialog(R.string.novel_translation_started_background)
         }
     }
 

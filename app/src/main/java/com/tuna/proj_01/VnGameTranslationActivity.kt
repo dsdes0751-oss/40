@@ -11,7 +11,6 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -63,7 +62,7 @@ class VnGameTranslationActivity : LocalizedActivity() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
                 requestScreenCapturePermission()
             } else {
-                Toast.makeText(this, getString(R.string.vn_overlay_permission_required), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.vn_overlay_permission_required)
             }
         }
 
@@ -72,7 +71,7 @@ class VnGameTranslationActivity : LocalizedActivity() {
             if (result.resultCode == Activity.RESULT_OK && result.data != null) {
                 startVnFastService(result.resultCode, result.data!!)
             } else {
-                Toast.makeText(this, getString(R.string.vn_screen_capture_permission_denied), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.vn_screen_capture_permission_denied)
             }
         }
 
@@ -111,13 +110,13 @@ class VnGameTranslationActivity : LocalizedActivity() {
 
         findViewById<Button>(R.id.btn_vn_start_translation).setOnClickListener {
             if (FirebaseAuth.getInstance().currentUser == null) {
-                Toast.makeText(this, getString(R.string.novel_translation_login_needed), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.novel_translation_login_needed)
                 return@setOnClickListener
             }
             if (TranslationWorkState.isAnyTranslationRunning(this)) {
                 val runningTask = TranslationWorkState.runningTaskName(this)
                     ?: getString(R.string.translation_running_other_task)
-                Toast.makeText(this, getString(R.string.translation_running_block_message, runningTask), Toast.LENGTH_LONG).show()
+                showMessageDialog(getString(R.string.translation_running_block_message, runningTask))
                 return@setOnClickListener
             }
             checkOverlayPermission()

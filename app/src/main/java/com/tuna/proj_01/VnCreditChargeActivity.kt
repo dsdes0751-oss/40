@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.functions.FirebaseFunctionsException
@@ -98,7 +97,7 @@ class VnCreditChargeActivity : LocalizedActivity() {
             try {
                 val result = VnCreditsRepository.purchaseVnCredits(packageId)
                 updateBalanceUi(result.newVnCharBalance)
-                Toast.makeText(this@VnCreditChargeActivity, R.string.vn_top_up_success, Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.vn_top_up_success)
             } catch (e: Exception) {
                 val messageRes = if (e is FirebaseFunctionsException) {
                     when (e.code) {
@@ -109,7 +108,7 @@ class VnCreditChargeActivity : LocalizedActivity() {
                 } else {
                     R.string.vn_error_generic
                 }
-                Toast.makeText(this@VnCreditChargeActivity, getString(messageRes), Toast.LENGTH_SHORT).show()
+                showMessageDialog(messageRes)
             }
         }
     }

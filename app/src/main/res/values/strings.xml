@@ -4,8 +4,8 @@
 
     <string-array name="app_language_options">
         <item>한국어</item>
-        <item>일본어</item>
-        <item>영어</item>
+        <item>日本語</item>
+        <item>English</item>
     </string-array>
 
     <string-array name="theme_options">
@@ -34,13 +34,22 @@
     <string name="settings_other">기타 설정</string>
     <string name="settings_language">언어 설정</string>
     <string name="settings_language_label">언어</string>
+    <string name="settings_language_fixed_label" translatable="false">Language</string>
+    <string name="settings_language_sheet_subtitle">앱 전체 텍스트에 적용할 언어를 선택하세요.</string>
     <string name="settings_language_restart_required_title">재시작 필요</string>
     <string name="settings_language_restart_required_message">언어 변경을 적용하려면 앱을 다시 시작해야 합니다.</string>
     <string name="language_name_korean">한국어</string>
-    <string name="language_name_japanese">일본어</string>
-    <string name="language_name_chinese">중국어</string>
-    <string name="language_name_english">영어</string>
+    <string name="language_name_japanese">日本語</string>
+    <string name="language_name_chinese">中文</string>
+    <string name="language_name_english">English</string>
     <string name="settings_theme">테마 설정</string>
+    <string name="settings_theme_sheet_subtitle">앱 화면 밝기 스타일을 선택하세요.</string>
+    <string name="settings_theme_system_desc">기기 시스템 모드에 맞춰 자동 전환</string>
+    <string name="settings_theme_light_desc">항상 밝은 화면으로 표시</string>
+    <string name="settings_theme_dark_desc">항상 어두운 화면으로 표시</string>
+    <string name="settings_language_desc_korean">앱 텍스트를 한국어로 표시</string>
+    <string name="settings_language_desc_japanese">앱 텍스트를 일본어로 표시</string>
+    <string name="settings_language_desc_english">앱 텍스트를 영어로 표시</string>
     <string name="settings_send_feedback">피드백 보내기</string>
     <string name="settings_privacy_policy">개인정보처리방침</string>
     <string name="settings_version">버전 정보</string>

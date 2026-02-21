@@ -285,7 +285,7 @@
                             android:maxLines="2"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp"
-                            tools:text="한국어" />
+                            tools:text="Language" />
                     </LinearLayout>
 
                     <View

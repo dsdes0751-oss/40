@@ -1,10 +1,9 @@
 ﻿<resources>
     <string name="app_name">漫画翻译</string>
     <string-array name="app_language_options">
-        <item>韩语</item>
-        <item>日语</item>
-        <item>中文</item>
-        <item>英语</item>
+        <item>한국어</item>
+        <item>日本語</item>
+        <item>English</item>
     </string-array>
     <string-array name="theme_options">
         <item>跟随系统</item>
@@ -50,10 +49,10 @@
     <string name="settings_language">语言设置</string>
     <string name="settings_version_name_format">v%1$s</string>
     <string name="settings_language_label">语言</string>
-    <string name="language_name_korean">韩语</string>
-    <string name="language_name_japanese">日语</string>
+    <string name="language_name_korean">한국어</string>
+    <string name="language_name_japanese">日本語</string>
     <string name="language_name_chinese">中文</string>
-    <string name="language_name_english">英语</string>
+    <string name="language_name_english">English</string>
     <string name="common_cancel">取消</string>
     <string name="common_close">关闭</string>
     <string name="common_ok">确定</string>

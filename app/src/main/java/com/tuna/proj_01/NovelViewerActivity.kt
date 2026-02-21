@@ -20,7 +20,6 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
@@ -183,7 +182,7 @@ class NovelViewerActivity : LocalizedActivity() {
     private suspend fun loadBook() {
         val f = translatedFile
         if (f == null || !f.exists()) {
-            Toast.makeText(this, getString(R.string.novel_translation_empty_file), Toast.LENGTH_SHORT).show()
+            showMessageDialog(R.string.novel_translation_empty_file)
             finish()
             return
         }
@@ -789,9 +788,9 @@ class NovelViewerActivity : LocalizedActivity() {
         lifecycleScope.launch {
             val result = BookFileManager.exportCurrentBook(this@NovelViewerActivity, current)
             if (result.successCount > 0) {
-                Toast.makeText(this@NovelViewerActivity, getString(R.string.novel_viewer_export_done), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.novel_viewer_export_done)
             } else {
-                Toast.makeText(this@NovelViewerActivity, getString(R.string.novel_viewer_export_fail), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.novel_viewer_export_fail)
             }
         }
     }
@@ -801,7 +800,7 @@ class NovelViewerActivity : LocalizedActivity() {
         lifecycleScope.launch {
             val metadata = withContext(Dispatchers.IO) { BookMetadataManager.loadMetadata(current) }
             if (metadata.isBookmarked) {
-                Toast.makeText(this@NovelViewerActivity, getString(R.string.viewer_delete_block_bookmarked), Toast.LENGTH_SHORT).show()
+                showMessageDialog(R.string.viewer_delete_block_bookmarked)
                 return@launch
             }
             AlertDialog.Builder(this@NovelViewerActivity)
@@ -833,17 +832,13 @@ class NovelViewerActivity : LocalizedActivity() {
                     .setView(input)
                     .setPositiveButton(R.string.common_delete) { _, _ ->
                         if (input.text?.toString()?.trim() != getString(R.string.viewer_delete_all_keyword)) {
-                            Toast.makeText(
-                                this@NovelViewerActivity,
-                                getString(R.string.viewer_delete_all_keyword_mismatch),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            showMessageDialog(R.string.viewer_delete_all_keyword_mismatch)
                             return@setPositiveButton
                         }
                         lifecycleScope.launch {
                             val deleted = BookFileManager.deleteAllBooks(File(filesDir, "Books"), keepBookmarked = false)
                             TextViewerSettingsStore.clearAllBookPositions(this@NovelViewerActivity)
-                            Toast.makeText(this@NovelViewerActivity, getString(R.string.viewer_delete_all_done, deleted), Toast.LENGTH_SHORT).show()
+                            showMessageDialog(getString(R.string.viewer_delete_all_done, deleted))
                             navigateToLibraryAfterDelete()
                         }
                     }
