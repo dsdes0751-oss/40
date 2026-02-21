@@ -618,7 +618,10 @@ class SettingsActivity : LocalizedActivity() {
             .setTitle(localizedResources.getString(R.string.settings_language_restart_required_title))
             .setMessage(localizedResources.getString(R.string.settings_language_restart_required_message))
             .setCancelable(false)
-            .setPositiveButton(localizedResources.getString(R.string.common_ok), null)
+            .setPositiveButton(localizedResources.getString(R.string.common_ok)) { _, _ ->
+                setResult(RESULT_OK, android.content.Intent().putExtra(EXTRA_LANGUAGE_CHANGED, true))
+                finish()
+            }
             .show()
     }
 
